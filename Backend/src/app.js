@@ -6,7 +6,6 @@ const userRoutes = require("./routes/userRoutes");
 const employeeRoutes = require('./routes/employeeRoutes');
 const companyRoutes = require('./routes/companyRoutes');
 const skillRoutes = require("./routes/skillRoutes");
-const employeeSkillRoutes = require("./routes/employeeSkillRoutes");
 
 app.use(express.json());
 
@@ -26,7 +25,6 @@ app.use('/api/companies', companyRoutes);
 app.use('/api/skills', skillRoutes);
 
 // EmployeeSkill routes
-app.use('/api/employee-skills', employeeSkillRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
