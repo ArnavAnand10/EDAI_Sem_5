@@ -1,5 +1,6 @@
 const express = require('express')
 const app = express()
+const cors = require('cors')
 
 const authRoutes = require('./routes/authRoutes')
 const userRoutes = require('./routes/userRoutes')
@@ -8,6 +9,7 @@ const companyRoutes = require('./routes/companyRoutes')
 const skillRoutes = require('./routes/skillRoutes')
 
 app.use(express.json())
+app.use(cors())
 
 // Auth routes
 app.use('/api/auth', authRoutes)
