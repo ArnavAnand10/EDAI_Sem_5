@@ -7,19 +7,13 @@ const {
   updateEmployee,
   deleteEmployee,
 } = require('../controllers/employeeController');
+const { authenticateToken, isAdmin } = require('../middlewares/authMiddleware');
 
-const { authenticateToken } = require('../middlewares/auth');
-
-// All routes require authentication
-router.use(authenticateToken);
-
-// Admin-only routes
-router.post('/', createEmployee);
-router.delete('/:id', deleteEmployee);
-
-// Accessible routes
-router.get('/', getEmployees);
-router.get('/:id', getEmployee);
-router.put('/:id', updateEmployee);
+// Admin routes
+router.get('/', authenticateToken, isAdmin, getEmployees);
+router.get('/:id', authenticateToken, isAdmin, getEmployee);
+router.post('/', authenticateToken, isAdmin, createEmployee);
+router.put('/:id', authenticateToken, isAdmin, updateEmployee);
+router.delete('/:id', authenticateToken, isAdmin, deleteEmployee);
 
 module.exports = router;

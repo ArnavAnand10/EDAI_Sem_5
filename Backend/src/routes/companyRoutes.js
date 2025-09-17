@@ -8,7 +8,8 @@ const {
   deleteCompany,
 } = require('../controllers/companyController');
 
-const { authenticateToken } = require('../middlewares/auth');
+const { authenticateToken } = require('../middlewares/authMiddleware');
+
 
 // All routes require authentication
 router.use(authenticateToken);
