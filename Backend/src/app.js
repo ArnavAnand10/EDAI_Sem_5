@@ -1,30 +1,30 @@
-const express = require('express');
-const app = express();
+const express = require('express')
+const app = express()
 
-const authRoutes = require("./routes/authRoutes");
-const userRoutes = require("./routes/userRoutes");
-const employeeRoutes = require('./routes/employeeRoutes');
-const companyRoutes = require('./routes/companyRoutes');
-const skillRoutes = require("./routes/skillRoutes");
+const authRoutes = require('./routes/authRoutes')
+const userRoutes = require('./routes/userRoutes')
+const employeeRoutes = require('./routes/employeeRoutes')
+const companyRoutes = require('./routes/companyRoutes')
+const skillRoutes = require('./routes/skillRoutes')
 
-app.use(express.json());
+app.use(express.json())
 
 // Auth routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authRoutes)
 
 // User routes
-app.use('/api/users', userRoutes);
+app.use('/api/users', userRoutes)
 
 // Employee routes
-app.use('/api/employees', employeeRoutes);
+app.use('/api/employees', employeeRoutes)
 
 // Company routes
-app.use('/api/companies', companyRoutes);
+app.use('/api/companies', companyRoutes)
 
 // Skill routes
-app.use('/api/skills', skillRoutes);
+app.use('/api/skills', skillRoutes)
 
 // EmployeeSkill routes
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const PORT = process.env.PORT || 4000
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
