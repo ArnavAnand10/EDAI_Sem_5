@@ -7,6 +7,9 @@ const userRoutes = require('./routes/userRoutes')
 const employeeRoutes = require('./routes/employeeRoutes')
 const companyRoutes = require('./routes/companyRoutes')
 const skillRoutes = require('./routes/skillRoutes')
+const adminRoutes = require('./routes/adminRoutes');
+
+// Admin routes
 
 app.use(express.json())
 app.use(cors())
@@ -22,6 +25,9 @@ app.use('/api/employees', employeeRoutes)
 
 // Company routes
 app.use('/api/companies', companyRoutes)
+
+// Admin routes
+app.use('/api/admins', adminRoutes);
 
 // Skill routes
 app.use('/api/skills', skillRoutes)

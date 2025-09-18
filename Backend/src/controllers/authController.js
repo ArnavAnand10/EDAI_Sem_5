@@ -4,8 +4,6 @@ const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key';
 const TOKEN_EXP = '7d';
-
-// --------------------- REGISTER ---------------------
 async function register(req, res) {
   try {
     const { email, password, firstName, lastName, role, adminId } = req.body;
@@ -13,37 +11,37 @@ async function register(req, res) {
     if (!email || !password || !firstName || !role)
       return res.status(400).json({ error: 'email, password, firstName, and role are required' });
 
-    // Check if email already exists
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return res.status(400).json({ error: 'Email already in use' });
 
-    // Hash password
     const hashed = await hashPassword(password);
 
-    // Create User
     const createdUser = await prisma.user.create({
-      data: {
-        email,
-        password: hashed,
-        role,
-      },
+      data: { email, password: hashed, role },
     });
 
     let employee = null;
 
-    // If Employee, create Employee record
     if (role === 'EMPLOYEE') {
+      if (!adminId) {
+        return res.status(400).json({ error: 'adminId is required for employees' });
+      }
+
+      const admin = await prisma.user.findUnique({ where: { id: adminId } });
+      if (!admin || admin.role !== 'ADMIN') {
+        return res.status(400).json({ error: 'Invalid adminId. Must belong to an ADMIN user' });
+      }
+
       employee = await prisma.employee.create({
         data: {
           firstName,
           lastName: lastName || null,
-          adminId: adminId || null, // optional admin assignment
-          user: { connect: { id: createdUser.id } }, // link to user
+          admin: { connect: { id: adminId } },       // connect to ADMIN
+          user: { connect: { id: createdUser.id } }, // link to User
         },
       });
     }
 
-    // Create JWT token
     const token = jwt.sign(
       { userId: createdUser.id, role: createdUser.role },
       JWT_SECRET,
@@ -61,36 +59,43 @@ async function register(req, res) {
       token,
     });
   } catch (err) {
-    console.error(err);
+    console.error(' Register error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 }
+
 
 // --------------------- LOGIN ---------------------
 async function login(req, res) {
   try {
     const { email, password } = req.body;
+    console.log("Login attempt:", email);
 
     if (!email || !password)
       return res.status(400).json({ error: 'email and password required' });
 
-    // Find user
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { employee: true, employees: true }, // include relations
+      include: { employee: true, employees: true },
     });
 
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!user) {
+      console.log("User not found:", email);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
     const isValid = await comparePassword(password, user.password);
-    if (!isValid) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!isValid) {
+      console.log("Invalid password for:", email);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
-    // JWT token
     const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, {
       expiresIn: TOKEN_EXP,
     });
 
-    // Send response
+    console.log("Login success:", email);
+
     res.json({
       user: {
         id: user.id,
@@ -103,7 +108,7 @@ async function login(req, res) {
       token,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Login error:", err.message);
     res.status(500).json({ error: 'Internal server error' });
   }
 }
