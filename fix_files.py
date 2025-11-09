@@ -1,4 +1,6 @@
-'use client'
+import os
+
+admin_content = """'use client'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -240,3 +242,11 @@ export default function AdminPage() {
     </div>
   )
 }
+"""
+
+# Write admin page
+admin_file = r"d:\\EDAI_SEM_5\\frontend\\src\\app\\admin\\page.tsx"
+with open(admin_file, 'w', encoding='utf-8') as f:
+    f.write(admin_content)
+
+print("Admin page fixed successfully!")
