@@ -15,9 +15,19 @@ export async function apiGet(path: string) {
 		headers: { Authorization: `Bearer ${getToken()}` },
 		cache: 'no-store',
 	})
-	if (!res.ok)
-		throw await res.json().catch(() => ({ error: 'Request failed' }))
-	return res.json()
+	// read body once
+	const data = await res.json().catch(() => null)
+	if (!res.ok) throw data || { error: 'Request failed' }
+	// backend wraps the user under { user: {...} } for /users/me
+	if (
+		path === '/users/me' &&
+		data &&
+		typeof data === 'object' &&
+		'user' in data
+	) {
+		return data.user
+	}
+	return data
 }
 
 export async function apiPost(path: string, body: any) {

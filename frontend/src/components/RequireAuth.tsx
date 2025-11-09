@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { API_BASE } from '@/lib/api'
+import { apiGet } from '@/lib/api'
 
 export default function RequireAuth({
 	children,
@@ -20,13 +20,8 @@ export default function RequireAuth({
 			router.replace('/auth/login')
 			return
 		}
-		fetch(`${API_BASE}/users/me`, {
-			headers: { Authorization: `Bearer ${token}` },
-			cache: 'no-store',
-		})
-			.then(async (r) => {
-				if (!r.ok) throw new Error('unauth')
-				const u = await r.json()
+		apiGet('/users/me')
+			.then((u) => {
 				if (role && u.role !== role) throw new Error('role')
 				setOk(true)
 			})

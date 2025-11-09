@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { API_BASE } from '@/lib/api'
+import { apiGet } from '@/lib/api'
 import { Trophy, User, LogOut, Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -18,17 +18,14 @@ export default function TopNav() {
 			localStorage.getItem('auth_token') ||
 			sessionStorage.getItem('auth_token')
 		if (!token) return
-		fetch(`${API_BASE}/users/me`, {
-			headers: { Authorization: `Bearer ${token}` },
-			cache: 'no-store',
-		})
-			.then((r) => (r.ok ? r.json() : null))
+		apiGet('/users/me')
 			.then(setUser)
 			.catch(() => {})
 	}, [path])
 
 	function logout() {
 		localStorage.removeItem('auth_token')
+		localStorage.removeItem('user')
 		sessionStorage.removeItem('auth_token')
 		document.cookie = 'auth_token=; Max-Age=0; path=/'
 		router.replace('/auth/login')
@@ -43,13 +40,17 @@ export default function TopNav() {
 					{/* Logo */}
 					<div className="flex items-center space-x-2">
 						<Link
-							href={user?.role === 'ADMIN' ? '/admin' : '/dashboard'}
+							href={
+								user?.role === 'ADMIN' ? '/admin' : '/dashboard'
+							}
 							className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
 						>
 							<div className="p-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg">
 								<Trophy className="h-5 w-5 text-white" />
 							</div>
-							<span className="text-xl font-bold text-gray-900">SkillHub</span>
+							<span className="text-xl font-bold text-gray-900">
+								SkillHub
+							</span>
 						</Link>
 					</div>
 
@@ -57,42 +58,52 @@ export default function TopNav() {
 					<div className="hidden md:flex items-center space-x-8">
 						{user?.role === 'ADMIN' && (
 							<>
-								<Link 
+								<Link
 									href="/admin"
 									className={`text-sm font-medium transition-colors hover:text-indigo-600 ${
-										isActive('/admin') ? 'text-indigo-600' : 'text-gray-700'
+										isActive('/admin')
+											? 'text-indigo-600'
+											: 'text-gray-700'
 									}`}
 								>
 									Dashboard
 								</Link>
-								<Link 
+								<Link
 									href="/admin/employees"
 									className={`text-sm font-medium transition-colors hover:text-indigo-600 ${
-										isActive('/admin/employees') ? 'text-indigo-600' : 'text-gray-700'
+										isActive('/admin/employees')
+											? 'text-indigo-600'
+											: 'text-gray-700'
 									}`}
 								>
 									Employees
 								</Link>
-								<Link 
+								<Link
 									href="/companies"
 									className={`text-sm font-medium transition-colors hover:text-indigo-600 ${
-										isActive('/companies') ? 'text-indigo-600' : 'text-gray-700'
+										isActive('/companies')
+											? 'text-indigo-600'
+											: 'text-gray-700'
 									}`}
 								>
 									Companies
 								</Link>
-								<Link 
+								<Link
 									href="/skills"
 									className={`text-sm font-medium transition-colors hover:text-indigo-600 ${
-										isActive('/skills') ? 'text-indigo-600' : 'text-gray-700'
+										isActive('/skills')
+											? 'text-indigo-600'
+											: 'text-gray-700'
 									}`}
 								>
 									Skills
 								</Link>
-								<Link 
+								<Link
 									href="/admin/skill-request"
 									className={`text-sm font-medium transition-colors hover:text-indigo-600 ${
-										isActive('/admin/skill-request') ? 'text-indigo-600' : 'text-gray-700'
+										isActive('/admin/skill-request')
+											? 'text-indigo-600'
+											: 'text-gray-700'
 									}`}
 								>
 									Requests
@@ -101,26 +112,32 @@ export default function TopNav() {
 						)}
 						{user?.role === 'EMPLOYEE' && (
 							<>
-								<Link 
+								<Link
 									href="/dashboard"
 									className={`text-sm font-medium transition-colors hover:text-indigo-600 ${
-										isActive('/dashboard') ? 'text-indigo-600' : 'text-gray-700'
+										isActive('/dashboard')
+											? 'text-indigo-600'
+											: 'text-gray-700'
 									}`}
 								>
 									Dashboard
 								</Link>
-								<Link 
+								<Link
 									href="/skills"
 									className={`text-sm font-medium transition-colors hover:text-indigo-600 ${
-										isActive('/skills') ? 'text-indigo-600' : 'text-gray-700'
+										isActive('/skills')
+											? 'text-indigo-600'
+											: 'text-gray-700'
 									}`}
 								>
 									Browse Skills
 								</Link>
-								<Link 
+								<Link
 									href="/skills/request"
 									className={`text-sm font-medium transition-colors hover:text-indigo-600 ${
-										isActive('/skills/request') ? 'text-indigo-600' : 'text-gray-700'
+										isActive('/skills/request')
+											? 'text-indigo-600'
+											: 'text-gray-700'
 									}`}
 								>
 									Request Skill
@@ -139,7 +156,10 @@ export default function TopNav() {
 										<span className="text-sm font-medium text-gray-700">
 											{user.email.split('@')[0]}
 										</span>
-										<Badge variant="secondary" className="text-xs">
+										<Badge
+											variant="secondary"
+											className="text-xs"
+										>
 											{user.role}
 										</Badge>
 									</div>
@@ -157,7 +177,9 @@ export default function TopNav() {
 						) : (
 							<div className="flex items-center space-x-2">
 								<Link href="/auth/login">
-									<Button variant="ghost" size="sm">Login</Button>
+									<Button variant="ghost" size="sm">
+										Login
+									</Button>
 								</Link>
 								<Link href="/auth/register">
 									<Button size="sm">Sign Up</Button>
@@ -242,7 +264,7 @@ export default function TopNav() {
 									</Link>
 								</>
 							)}
-							
+
 							{user && (
 								<div className="border-t pt-4 mt-4">
 									<div className="px-3 py-2">
@@ -251,7 +273,10 @@ export default function TopNav() {
 											<span className="text-sm font-medium text-gray-700">
 												{user.email}
 											</span>
-											<Badge variant="secondary" className="text-xs">
+											<Badge
+												variant="secondary"
+												className="text-xs"
+											>
 												{user.role}
 											</Badge>
 										</div>
