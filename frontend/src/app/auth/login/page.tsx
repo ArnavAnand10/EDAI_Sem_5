@@ -2,16 +2,15 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Award } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function LoginPage() {
-	const router = useRouter()
-	const API_BASE = 'http://localhost:4000/api'
+	const { login } = useAuth()
 
 	const [formData, setFormData] = useState({
 		email: '',
@@ -26,32 +25,7 @@ export default function LoginPage() {
 		try {
 			setLoading(true)
 			setError(null)
-
-			const res = await fetch(`${API_BASE}/auth/login`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(formData),
-			})
-
-			const data = await res.json()
-
-			if (!res.ok) {
-				throw new Error(data.error || 'Login failed')
-			}
-
-			const token = data.token
-			const user = data.user
-			if (token) {
-				localStorage.setItem('auth_token', token)
-				document.cookie = `auth_token=${token}; path=/; samesite=lax`
-			}
-			if (user) localStorage.setItem('user', JSON.stringify(user))
-			const role = user?.role || 'EMPLOYEE'
-			if (role === 'ADMIN') {
-				router.push('/admin')
-			} else {
-				router.push('/dashboard')
-			}
+			await login(formData.email, formData.password)
 		} catch (err: any) {
 			setError(err.message || 'Login failed')
 		} finally {
@@ -75,7 +49,9 @@ export default function LoginPage() {
 						className="flex items-center justify-center space-x-2 mb-4"
 					>
 						<Award className="w-8 h-8 text-blue-600" />
-						<span className="text-xl font-bold">SkillBase</span>
+						<span className="text-xl font-bold">
+							Employee Skill Rating System
+						</span>
 					</Link>
 					<h1 className="text-2xl font-bold">Sign In</h1>
 					<p className="text-sm text-gray-600 mt-2">
@@ -84,7 +60,7 @@ export default function LoginPage() {
 							href="/auth/register"
 							className="text-blue-600 hover:text-blue-500"
 						>
-							Create admin account
+							Register here
 						</Link>
 					</p>
 				</div>
@@ -151,9 +127,10 @@ export default function LoginPage() {
 				</Card>
 
 				<div className="text-center text-sm text-gray-600">
-					<p className="mb-1">Test Credentials:</p>
-					<p>Admin: admin@example.com / admin123</p>
-					<p>Employee: john.doe@example.com / employee123</p>
+					<p className="mb-1">
+						New users are created as EMPLOYEE by default.
+					</p>
+					<p>Admin can upgrade roles after registration.</p>
 				</div>
 			</div>
 		</div>
