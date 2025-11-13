@@ -1,13 +1,13 @@
 const prisma = require('../config/prisma');
 
-// Employee self-rates a skill (1-5)
+// Employee self-rates a skill (1-10)
 const selfRateSkill = async (req, res) => {
   try {
     const { skillId, selfRating, selfComments } = req.body;
 
     // Validate rating
-    if (!skillId || !selfRating || selfRating < 1 || selfRating > 5) {
-      return res.status(400).json({ error: 'Skill ID and rating (1-5) are required' });
+    if (!skillId || !selfRating || selfRating < 1 || selfRating > 10) {
+      return res.status(400).json({ error: 'Skill ID and rating (1-10) are required' });
     }
 
     // Get employee ID from userId
@@ -142,8 +142,8 @@ const managerApproveSkill = async (req, res) => {
 
     // If approving, manager can optionally change the rating
     if (managerStatus === 'APPROVED' && managerRating) {
-      if (managerRating < 1 || managerRating > 5) {
-        return res.status(400).json({ error: 'Manager rating must be between 1-5' });
+      if (managerRating < 1 || managerRating > 10) {
+        return res.status(400).json({ error: 'Manager rating must be between 1-10' });
       }
     }
 

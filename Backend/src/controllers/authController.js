@@ -5,10 +5,10 @@ const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key';
 const TOKEN_EXP = '7d';
 
-// Register new user (everyone starts as EMPLOYEE by default)
+// Register new user
 async function register(req, res) {
   try {
-    const { email, password, firstName, lastName, department, position } = req.body;
+    const { email, password, firstName, lastName, department, position, role } = req.body;
 
     if (!email || !password || !firstName) {
       return res.status(400).json({ error: 'email, password, and firstName are required' });
@@ -23,25 +23,37 @@ async function register(req, res) {
     // Hash password
     const hashed = await hashPassword(password);
 
-    // Create user with default EMPLOYEE role
+    // Validate role if provided
+    const validRoles = ['EMPLOYEE', 'MANAGER', 'HR', 'ADMIN'];
+    const userRole = role && validRoles.includes(role) ? role : 'EMPLOYEE';
+
+    console.log('Registration request - role received:', role);
+    console.log('Registration request - userRole to save:', userRole);
+
+    // Create user with specified or default role
     const user = await prisma.user.create({
       data: { 
         email, 
         password: hashed, 
-        role: 'EMPLOYEE' // Default role
+        role: userRole
       },
     });
 
-    // Create employee profile
-    const employee = await prisma.employee.create({
-      data: {
-        firstName,
-        lastName: lastName || null,
-        department: department || null,
-        position: position || null,
-        userId: user.id
-      },
-    });
+    console.log('User created with role:', user.role);
+
+    // Create employee profile (only for EMPLOYEE and MANAGER roles)
+    let employee = null;
+    if (userRole === 'EMPLOYEE' || userRole === 'MANAGER') {
+      employee = await prisma.employee.create({
+        data: {
+          firstName,
+          lastName: lastName || null,
+          department: department || null,
+          position: position || null,
+          userId: user.id
+        },
+      });
+    }
 
     // Generate JWT token
     const token = jwt.sign(
@@ -50,17 +62,30 @@ async function register(req, res) {
       { expiresIn: TOKEN_EXP }
     );
 
+    // Prepare response based on role
+    const userResponse = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    // Add employee data if it exists (EMPLOYEE, MANAGER)
+    if (employee) {
+      userResponse.employee = {
+        id: employee.id,
+        firstName: employee.firstName,
+        lastName: employee.lastName
+      };
+    } else {
+      // For HR and ADMIN, add firstName/lastName directly to user object
+      userResponse.firstName = firstName;
+      userResponse.lastName = lastName || '';
+    }
+
+    console.log('Sending registration response with role:', userResponse.role);
+
     res.status(201).json({
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        employee: {
-          id: employee.id,
-          firstName: employee.firstName,
-          lastName: employee.lastName
-        }
-      },
+      user: userResponse,
       token,
     });
   } catch (err) {
@@ -118,13 +143,24 @@ async function login(req, res) {
       { expiresIn: TOKEN_EXP }
     );
 
+    // Prepare user response
+    const userResponse = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    // If user has employee profile (EMPLOYEE, MANAGER)
+    if (user.employee) {
+      userResponse.employee = user.employee;
+    } else {
+      // For HR and ADMIN without employee records, use email as display name
+      userResponse.firstName = user.email.split('@')[0]; // Fallback: use email prefix
+      userResponse.lastName = '';
+    }
+
     res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        employee: user.employee
-      },
+      user: userResponse,
       token,
     });
   } catch (err) {
