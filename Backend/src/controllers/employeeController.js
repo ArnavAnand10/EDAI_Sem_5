@@ -1,143 +1,210 @@
 const prisma = require('../config/prisma');
 
-// --------------------- GET ALL EMPLOYEES ---------------------
-// Admin only: get employees under this admin
-async function getEmployees(req, res) {
+// Get my profile (current user's employee data)
+const getMyProfile = async (req, res) => {
   try {
-    if (req.user.role !== 'ADMIN')
-      return res.status(403).json({ error: 'Admin access required' });
-
-    const employees = await prisma.employee.findMany({
-      where: { adminId: req.user.userId },
-      include: { company: true, user: true, skills: { include: { skill: true } } },
-    });
-
-    res.json(employees);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-}
-
-// --------------------- GET EMPLOYEE ---------------------
-// Employee sees self, Admin sees any of their employees
-async function getEmployee(req, res) {
-  try {
-    const { id } = req.params;
     const employee = await prisma.employee.findUnique({
-      where: { id: parseInt(id) },
-      include: { company: true, user: true, skills: { include: { skill: true } } },
+      where: { userId: req.user.userId },
+      include: {
+        user: { select: { email: true, role: true } },
+        manager: { 
+          include: { 
+            user: { select: { email: true, role: true } } 
+          } 
+        },
+        hr: {
+          include: {
+            user: { select: { email: true, role: true } }
+          }
+        },
+        skills: {
+          include: { skill: true }
+        }
+      }
     });
 
-    if (!employee) return res.status(404).json({ error: 'Employee not found' });
-
-    // Check permissions
-    if (req.user.role === 'EMPLOYEE' && employee.userId !== req.user.userId) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-    if (req.user.role === 'ADMIN' && employee.adminId !== req.user.userId) {
-      return res.status(403).json({ error: 'Access denied' });
+    if (!employee) {
+      return res.status(404).json({ error: 'Employee profile not found' });
     }
 
     res.json(employee);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-}
+};
 
-// --------------------- CREATE EMPLOYEE ---------------------
-// Admin only: create employee under them
-async function createEmployee(req, res) {
+// Get all employees (based on role hierarchy)
+const getAllEmployees = async (req, res) => {
   try {
-    if (req.user.role !== 'ADMIN')
-      return res.status(403).json({ error: 'Admin access required' });
+    const { role, userId } = req.user;
 
-    const { firstName, lastName, department, manager, companyId, email, password } = req.body;
-    if (!firstName || !email || !password)
-      return res.status(400).json({ error: 'firstName, email, and password are required' });
+    let employees;
 
-    // Create User
-    const hashedPassword = await require('../utils/hash').hashPassword(password);
-    const user = await prisma.user.create({
-      data: { email, password: hashedPassword, role: 'EMPLOYEE' },
-    });
+    if (role === 'ADMIN') {
+      // Admin can see all employees
+      employees = await prisma.employee.findMany({
+        include: {
+          user: { select: { email: true, role: true } },
+          manager: { 
+            select: { 
+              firstName: true, 
+              lastName: true,
+              user: { select: { email: true, role: true } }
+            } 
+          },
+          hr: {
+            select: {
+              firstName: true,
+              lastName: true,
+              user: { select: { email: true, role: true } }
+            }
+          }
+        }
+      });
+    } else if (role === 'HR') {
+      // HR can see their subordinates (employees + managers under them)
+      employees = await prisma.employee.findMany({
+        where: { hrId: userId },
+        include: {
+          user: { select: { email: true, role: true } },
+          manager: { 
+            select: { 
+              firstName: true, 
+              lastName: true,
+              user: { select: { email: true, role: true } }
+            } 
+          },
+          subordinates: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              position: true
+            }
+          }
+        }
+      });
+    } else if (role === 'MANAGER') {
+      // Manager can see their direct reports
+      employees = await prisma.employee.findMany({
+        where: { managerId: userId },
+        include: {
+          user: { select: { email: true, role: true } },
+          skills: {
+            include: { skill: true }
+          }
+        }
+      });
+    } else {
+      return res.status(403).json({ error: 'Access denied' });
+    }
 
-    // Create Employee
-    const employee = await prisma.employee.create({
-      data: {
-        firstName,
-        lastName,
-        department,
-        manager,
-        companyId,
-        adminId: req.user.userId, // link to this admin
-        user: { connect: { id: user.id } },
-      },
-    });
-
-    res.status(201).json(employee);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.json(employees);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-}
+};
 
-// --------------------- UPDATE EMPLOYEE ---------------------
-// Admin updates their employee; Employee updates self
-async function updateEmployee(req, res) {
+// Get employee by ID (with role-based access control)
+const getEmployeeById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role, userId } = req.user;
+
+    const employee = await prisma.employee.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        user: { select: { email: true, role: true } },
+        manager: { 
+          select: { 
+            firstName: true, 
+            lastName: true,
+            user: { select: { email: true, role: true } }
+          } 
+        },
+        hr: {
+          select: {
+            firstName: true,
+            lastName: true,
+            user: { select: { email: true, role: true } }
+          }
+        },
+        skills: {
+          include: { 
+            skill: true 
+          }
+        }
+      }
+    });
+
+    if (!employee) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    // Check access permissions
+    if (role === 'EMPLOYEE') {
+      // Employee can only see their own profile
+      if (employee.userId !== userId) {
+        return res.status(403).json({ error: 'You can only view your own profile' });
+      }
+    } else if (role === 'MANAGER') {
+      // Manager can only see their direct reports
+      if (employee.managerId !== userId && employee.userId !== userId) {
+        return res.status(403).json({ error: 'You can only view your direct reports' });
+      }
+    } else if (role === 'HR') {
+      // HR can only see employees under them
+      if (employee.hrId !== userId && employee.userId !== userId) {
+        return res.status(403).json({ error: 'You can only view employees under you' });
+      }
+    }
+    // Admin can see anyone (no check needed)
+
+    res.json(employee);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Update employee (only admin can change assignments)
+const updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
     const data = req.body;
 
-    const employee = await prisma.employee.findUnique({ where: { id: parseInt(id) } });
-    if (!employee) return res.status(404).json({ error: 'Employee not found' });
-
-    if (
-      (req.user.role === 'ADMIN' && employee.adminId !== req.user.userId) ||
-      (req.user.role === 'EMPLOYEE' && employee.userId !== req.user.userId)
-    ) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    const updated = await prisma.employee.update({
+    const employee = await prisma.employee.update({
       where: { id: parseInt(id) },
       data,
+      include: {
+        user: { select: { email: true, role: true } }
+      }
     });
 
-    res.json(updated);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.json(employee);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-}
+};
 
-// --------------------- DELETE EMPLOYEE ---------------------
-// Admin only: delete employee under them
-async function deleteEmployee(req, res) {
+// Delete employee (admin only)
+const deleteEmployee = async (req, res) => {
   try {
-    if (req.user.role !== 'ADMIN')
-      return res.status(403).json({ error: 'Admin access required' });
-
     const { id } = req.params;
-    const employee = await prisma.employee.findUnique({ where: { id: parseInt(id) } });
-    if (!employee) return res.status(404).json({ error: 'Employee not found' });
 
-    if (employee.adminId !== req.user.userId)
-      return res.status(403).json({ error: 'Access denied' });
+    await prisma.employee.delete({
+      where: { id: parseInt(id) }
+    });
 
-    await prisma.employee.delete({ where: { id: parseInt(id) } });
-    res.json({ message: 'Employee deleted' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.json({ message: 'Employee deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-}
+};
 
 module.exports = {
-  getEmployees,
-  getEmployee,
-  createEmployee,
+  getMyProfile,
+  getAllEmployees,
+  getEmployeeById,
   updateEmployee,
-  deleteEmployee,
+  deleteEmployee
 };

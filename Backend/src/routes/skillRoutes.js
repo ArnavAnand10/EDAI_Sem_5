@@ -1,32 +1,21 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
+const { authenticateToken, isHR } = require('../middlewares/authMiddleware');
 const {
+  getAllSkills,
+  getSkillById,
   createSkill,
-  getSkills,
-  requestSkill,
-  updateEmployeeSkillStatus,
-  getMySkills,
-  getAllEmployeeSkillRequests,
-} = require("../controllers/skillController");
+  updateSkill,
+  deleteSkill
+} = require('../controllers/skillController');
 
-const { authenticateToken, isAdmin } = require("../middlewares/authMiddleware");
+// Public routes (no auth needed)
+router.get('/', getAllSkills);
+router.get('/:id', getSkillById);
 
-// ----------------- Admin: create global skill -----------------
-router.post("/", authenticateToken, isAdmin, createSkill);
-
-// ----------------- Public: get all skills -----------------
-router.get("/", getSkills);
-
-// ----------------- Employee: request a skill -----------------
-router.post("/request", authenticateToken, requestSkill);
-
-// ----------------- Employee: view own skills -----------------
-router.get("/my", authenticateToken, getMySkills);
-
-// ----------------- Admin: view all employee skill requests -----------------
-router.get("/requests", authenticateToken, isAdmin, getAllEmployeeSkillRequests);
-
-// ----------------- Admin: approve/reject a skill request -----------------
-router.patch("/requests/:id", authenticateToken, isAdmin, updateEmployeeSkillStatus);
+// HR-only routes
+router.post('/', authenticateToken, isHR, createSkill);
+router.put('/:id', authenticateToken, isHR, updateSkill);
+router.delete('/:id', authenticateToken, isHR, deleteSkill);
 
 module.exports = router;

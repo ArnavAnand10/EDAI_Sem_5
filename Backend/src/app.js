@@ -1,38 +1,32 @@
-const express = require('express')
-const app = express()
-const cors = require('cors')
+const express = require('express');
+const app = express();
+const cors = require('cors');
 
-const authRoutes = require('./routes/authRoutes')
-const userRoutes = require('./routes/userRoutes')
-const employeeRoutes = require('./routes/employeeRoutes')
-const companyRoutes = require('./routes/companyRoutes')
-const skillRoutes = require('./routes/skillRoutes')
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+const employeeRoutes = require('./routes/employeeRoutes');
+const skillRoutes = require('./routes/skillRoutes');
+const ratingRoutes = require('./routes/ratingRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const projectRoutes = require('./routes/projectRoutes');
 
-// Admin routes
+// Middleware
+app.use(express.json());
+app.use(cors());
 
-app.use(express.json())
-app.use(cors())
+// Register routes
+app.use('/api/auth', authRoutes);              // Authentication (register, login)
+app.use('/api/employees', employeeRoutes);     // Employee management
+app.use('/api/skills', skillRoutes);           // Skill management (HR only for CUD)
+app.use('/api/ratings', ratingRoutes);         // Skill ratings (employee + manager)
+app.use('/api/admin', adminRoutes);            // Admin functions (role assignment)
+app.use('/api/projects', projectRoutes);       // Project management (AI-powered matching)
 
-// Auth routes
-app.use('/api/auth', authRoutes)
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', message: 'Server is running' });
+});
 
-// User routes
-app.use('/api/users', userRoutes)
-
-// Employee routes
-app.use('/api/employees', employeeRoutes)
-
-// Company routes
-app.use('/api/companies', companyRoutes)
-
-// Admin routes
-app.use('/api/admins', adminRoutes);
-
-// Skill routes
-app.use('/api/skills', skillRoutes)
-
-// EmployeeSkill routes
-
-const PORT = process.env.PORT || 4000
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
+// Start server
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

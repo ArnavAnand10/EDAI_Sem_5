@@ -4,111 +4,131 @@ const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key';
 const TOKEN_EXP = '7d';
+
+// Register new user (everyone starts as EMPLOYEE by default)
 async function register(req, res) {
   try {
-    const { email, password, firstName, lastName, role, adminId } = req.body;
+    const { email, password, firstName, lastName, department, position } = req.body;
 
-    if (!email || !password || !firstName || !role)
-      return res.status(400).json({ error: 'email, password, firstName, and role are required' });
-
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) return res.status(400).json({ error: 'Email already in use' });
-
-    const hashed = await hashPassword(password);
-
-    const createdUser = await prisma.user.create({
-      data: { email, password: hashed, role },
-    });
-
-    let employee = null;
-
-    if (role === 'EMPLOYEE') {
-      if (!adminId) {
-        return res.status(400).json({ error: 'adminId is required for employees' });
-      }
-
-      const admin = await prisma.user.findUnique({ where: { id: adminId } });
-      if (!admin || admin.role !== 'ADMIN') {
-        return res.status(400).json({ error: 'Invalid adminId. Must belong to an ADMIN user' });
-      }
-
-      employee = await prisma.employee.create({
-        data: {
-          firstName,
-          lastName: lastName || null,
-          admin: { connect: { id: adminId } },       // connect to ADMIN
-          user: { connect: { id: createdUser.id } }, // link to User
-        },
-      });
+    if (!email || !password || !firstName) {
+      return res.status(400).json({ error: 'email, password, and firstName are required' });
     }
 
+    // Check if email already exists
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return res.status(400).json({ error: 'Email already in use' });
+    }
+
+    // Hash password
+    const hashed = await hashPassword(password);
+
+    // Create user with default EMPLOYEE role
+    const user = await prisma.user.create({
+      data: { 
+        email, 
+        password: hashed, 
+        role: 'EMPLOYEE' // Default role
+      },
+    });
+
+    // Create employee profile
+    const employee = await prisma.employee.create({
+      data: {
+        firstName,
+        lastName: lastName || null,
+        department: department || null,
+        position: position || null,
+        userId: user.id
+      },
+    });
+
+    // Generate JWT token
     const token = jwt.sign(
-      { userId: createdUser.id, role: createdUser.role },
+      { userId: user.id, email: user.email, role: user.role },
       JWT_SECRET,
       { expiresIn: TOKEN_EXP }
     );
 
     res.status(201).json({
       user: {
-        id: createdUser.id,
-        email: createdUser.email,
-        role: createdUser.role,
-        employeeId: employee ? employee.id : null,
-        adminId: employee ? employee.adminId : null,
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        employee: {
+          id: employee.id,
+          firstName: employee.firstName,
+          lastName: employee.lastName
+        }
       },
       token,
     });
   } catch (err) {
-    console.error(' Register error:', err);
+    console.error('Register error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 }
 
-
-// --------------------- LOGIN ---------------------
+// Login
 async function login(req, res) {
   try {
     const { email, password } = req.body;
-    console.log("Login attempt:", email);
 
-    if (!email || !password)
+    if (!email || !password) {
       return res.status(400).json({ error: 'email and password required' });
+    }
 
+    // Find user with employee data
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { employee: true, employees: true },
+      include: { 
+        employee: {
+          include: {
+            manager: {
+              select: {
+                firstName: true,
+                lastName: true
+              }
+            },
+            hr: {
+              select: {
+                firstName: true,
+                lastName: true
+              }
+            }
+          }
+        }
+      },
     });
 
     if (!user) {
-      console.log("User not found:", email);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Verify password
     const isValid = await comparePassword(password, user.password);
     if (!isValid) {
-      console.log("Invalid password for:", email);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, {
-      expiresIn: TOKEN_EXP,
-    });
-
-    console.log("Login success:", email);
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: TOKEN_EXP }
+    );
 
     res.json({
       user: {
         id: user.id,
         email: user.email,
         role: user.role,
-        employeeId: user.employee ? user.employee.id : null,
-        adminId: user.employee ? user.employee.adminId : null,
-        employeesUnderAdmin: user.role === 'ADMIN' ? user.employees : [],
+        employee: user.employee
       },
       token,
     });
   } catch (err) {
-    console.error("Login error:", err.message);
+    console.error('Login error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 }

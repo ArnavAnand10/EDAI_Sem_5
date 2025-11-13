@@ -7,71 +7,151 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// User model - represents login credentials and role
 model User {
   id        Int       @id @default(autoincrement())
   email     String    @unique
   password  String
-  role      String    // "ADMIN" or "EMPLOYEE"
+  role      String    @default("EMPLOYEE") // "EMPLOYEE", "MANAGER", "HR", "ADMIN"
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
   // Relations
-  employee   Employee?        // If this user is an employee
-  employees  Employee[] @relation("AdminEmployees") // If this user is an admin, list of employees under them
+  employee   Employee?
 }
 
+// Employee model - contains employee details
 model Employee {
-  id          Int       @id @default(autoincrement())
-  firstName   String
-  lastName    String?
-  department  String?
-  contactInfo String?
-  companyId   Int?
-  adminId     Int       // Foreign key: points to User who is admin
-  userId      Int?      @unique
-  managerId   Int?      // Self-relation foreign key
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              Int       @id @default(autoincrement())
+  firstName       String
+  lastName        String?
+  department      String?
+  contactInfo     String?
+  position        String?
+  dateOfJoining   DateTime?
+  location        String?
+  userId          Int       @unique
+  managerId       Int?      // Direct manager's userId (not employeeId)
+  hrId            Int?      // HR's userId (not employeeId)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   // Relations
-  user      User?       @relation(fields: [userId], references: [id])
-  admin     User        @relation("AdminEmployees", fields: [adminId], references: [id])
-  company   Company?    @relation(fields: [companyId], references: [id])
-  skills    EmployeeSkill[]
-
-  manager   Employee?   @relation("EmployeeManager", fields: [managerId], references: [id])
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills         EmployeeSkill[]
+  candidateMatches ProjectCandidateMatch[]
+  projectAssignments ProjectAssignment[] @relation("ProjectAssignments")
+  
+  // Self-relations for reporting hierarchy
+  manager        Employee?      @relation("ManagerSubordinates", fields: [managerId], references: [userId])
+  subordinates   Employee[]     @relation("ManagerSubordinates")
+  
+  hr             Employee?      @relation("HREmployees", fields: [hrId], references: [userId])
+  hrSubordinates Employee[]     @relation("HREmployees")
 }
 
-model Company {
-  id        Int        @id @default(autoincrement())
-  name      String
-  industry  String?
-  location  String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-
-  employees Employee[]
-}
-
+// Skill model - skills that can be rated
 model Skill {
   id        Int              @id @default(autoincrement())
   name      String           @unique
   category  String?
+  description String?
+  weight    Int              @default(0) // Base weight for skill importance (0-100)
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
   employeeSkills EmployeeSkill[]
+  projectSkillRequirements ProjectSkillRequirement[]
 }
 
+// EmployeeSkill model - employee's self-rating and manager's approval
 model EmployeeSkill {
-  id          Int      @id @default(autoincrement())
-  employeeId  Int
-  skillId     Int
-  level       String   // Beginner, Intermediate, Advanced, Expert
-  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
-  requestedAt DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                  Int      @id @default(autoincrement())
+  employeeId          Int
+  skillId             Int
+  
+  // Self-rating by employee (1-5)
+  selfRating          Int      // 1-5 rating by employee
+  selfComments        String?
+  
+  // Manager approval
+  managerRating       Int?     // 1-5 rating by manager (can change)
+  managerComments     String?
+  managerStatus       String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  managerApprovedAt   DateTime?
+  managerApprovedBy   Int?     // userId of manager who approved
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  employee Employee @relation(fields: [employeeId], references: [id])
-  skill    Skill    @relation(fields: [skillId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  skill    Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  
+  @@unique([employeeId, skillId])
+}
+
+// Project model - represents a project that needs employees
+model Project {
+  id                  Int      @id @default(autoincrement())
+  name                String
+  description         String   // Original project requirements from HR
+  createdBy           Int      // HR userId who created the project
+  status              String   @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED, CANCELLED
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  skillRequirements   ProjectSkillRequirement[]
+  candidateMatches    ProjectCandidateMatch[]
+  assignments         ProjectAssignment[]
+}
+
+// ProjectSkillRequirement - skills extracted by Gemini AI with weights
+model ProjectSkillRequirement {
+  id                  Int      @id @default(autoincrement())
+  projectId           Int
+  skillId             Int?     // NULL if skill not found in DB (missing skill)
+  skillName           String   // Name from Gemini (for mapping)
+  weight              Int      // Weight assigned by Gemini (1-100)
+  isMissing           Boolean  @default(false) // True if skill not in DB
+  createdAt           DateTime @default(now())
+
+  project             Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  skill               Skill?   @relation(fields: [skillId], references: [id], onDelete: SetNull)
+  
+  @@unique([projectId, skillName])
+}
+
+// ProjectCandidateMatch - calculated skill index for each employee
+model ProjectCandidateMatch {
+  id                  Int      @id @default(autoincrement())
+  projectId           Int
+  employeeId          Int
+  skillIndex          Float    // Calculated: Σ(project_weight × employee_rating) / count(project_skills)
+  matchPercentage     Float    // How many required skills the employee has
+  missingSkills       String   // JSON array of missing skill names
+  createdAt           DateTime @default(now())
+
+  project             Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  @@unique([projectId, employeeId])
+}
+
+// ProjectAssignment - HR selects employees, manager approves
+model ProjectAssignment {
+  id                  Int      @id @default(autoincrement())
+  projectId           Int
+  employeeId          Int
+  managerId           Int      // Manager who needs to approve
+  selectedBy          Int      // HR userId who selected this employee
+  managerStatus       String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  managerComments     String?
+  approvedAt          DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  project             Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employee            Employee @relation("ProjectAssignments", fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  @@unique([projectId, employeeId])
 }

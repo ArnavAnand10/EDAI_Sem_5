@@ -1,0 +1,1121 @@
+{
+	"info": {
+		"name": "Employee Skills Management - RBAC System",
+		"description": "Complete workflow testing for Role-Based Access Control System with skill ratings",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:4000/api",
+			"type": "string"
+		},
+		{
+			"key": "employeeToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "managerToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "managerManagerToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "hrToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "systemAdminToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "employeeSkillId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "skillId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "employeeId",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. SETUP - Create Test Data",
+			"item": [
+				{
+					"name": "1.1 Register System Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('systemAdminToken', jsonData.token);",
+									"    pm.environment.set('systemAdminToken', jsonData.token);",
+									"    console.log('System Admin Token:', jsonData.token);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@techcorp.com\",\n  \"password\": \"admin123\",\n  \"firstName\": \"System\",\n  \"lastName\": \"Administrator\",\n  \"role\": \"SYSTEM_ADMIN\",\n  \"adminId\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "1.2 Register HR Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('hrToken', jsonData.token);",
+									"    pm.environment.set('hrToken', jsonData.token);",
+									"    console.log('HR Admin Token:', jsonData.token);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"hr@techcorp.com\",\n  \"password\": \"hr123\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"HR\",\n  \"role\": \"HR_ADMIN\",\n  \"adminId\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "1.3 Register Manager Manager",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('managerManagerToken', jsonData.token);",
+									"    pm.environment.set('managerManagerToken', jsonData.token);",
+									"    console.log('Manager Manager Token:', jsonData.token);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"director@techcorp.com\",\n  \"password\": \"director123\",\n  \"firstName\": \"Bob\",\n  \"lastName\": \"Director\",\n  \"role\": \"MANAGER_MANAGER\",\n  \"adminId\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "1.4 Register Manager",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('managerToken', jsonData.token);",
+									"    pm.environment.set('managerToken', jsonData.token);",
+									"    console.log('Manager Token:', jsonData.token);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"manager@techcorp.com\",\n  \"password\": \"manager123\",\n  \"firstName\": \"Carol\",\n  \"lastName\": \"Manager\",\n  \"role\": \"MANAGER\",\n  \"adminId\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "1.5 Register Employee",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('employeeToken', jsonData.token);",
+									"    pm.collectionVariables.set('employeeId', jsonData.user.employeeId);",
+									"    pm.environment.set('employeeToken', jsonData.token);",
+									"    pm.environment.set('employeeId', jsonData.user.employeeId);",
+									"    console.log('Employee Token:', jsonData.token);",
+									"    console.log('Employee ID:', jsonData.user.employeeId);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"employee@techcorp.com\",\n  \"password\": \"emp123\",\n  \"firstName\": \"David\",\n  \"lastName\": \"Developer\",\n  \"role\": \"EMPLOYEE\",\n  \"adminId\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "register"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "2. AUTHENTICATION - Login",
+			"item": [
+				{
+					"name": "2.1 Login as Employee",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set('employeeToken', jsonData.token);",
+									"pm.environment.set('employeeToken', jsonData.token);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"employee@techcorp.com\",\n  \"password\": \"emp123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "2.2 Login as Manager",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set('managerToken', jsonData.token);",
+									"pm.environment.set('managerToken', jsonData.token);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"manager@techcorp.com\",\n  \"password\": \"manager123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "2.3 Login as HR Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set('hrToken', jsonData.token);",
+									"pm.environment.set('hrToken', jsonData.token);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"hr@techcorp.com\",\n  \"password\": \"hr123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "login"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "3. HR ADMIN WORKFLOW",
+			"item": [
+				{
+					"name": "3.1 Create Skill - JavaScript",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('skillId', jsonData.id);",
+									"    pm.environment.set('skillId', jsonData.id);",
+									"    console.log('Skill ID:', jsonData.id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{hrToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"JavaScript\",\n  \"category\": \"Programming\",\n  \"weightage\": 8\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/skills",
+							"host": ["{{baseUrl}}"],
+							"path": ["skills"]
+						}
+					}
+				},
+				{
+					"name": "3.2 Create Skill - Python",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{hrToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Python\",\n  \"category\": \"Programming\",\n  \"weightage\": 9\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/skills",
+							"host": ["{{baseUrl}}"],
+							"path": ["skills"]
+						}
+					}
+				},
+				{
+					"name": "3.3 Create Skill - React",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{hrToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"React\",\n  \"category\": \"Frontend\",\n  \"weightage\": 7\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/skills",
+							"host": ["{{baseUrl}}"],
+							"path": ["skills"]
+						}
+					}
+				},
+				{
+					"name": "3.4 Update Skill Weightage",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{hrToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"weightage\": 10\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/skills/{{skillId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["skills", "{{skillId}}"]
+						}
+					}
+				},
+				{
+					"name": "3.5 Update Employee Demographics",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{hrToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"department\": \"Engineering\",\n  \"position\": \"Senior Software Engineer\",\n  \"location\": \"San Francisco\",\n  \"dateOfJoining\": \"2023-01-15\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/employees/{{employeeId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["employees", "{{employeeId}}"]
+						}
+					}
+				},
+				{
+					"name": "3.6 Get All Skill Data",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{hrToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/search/all-skill-data",
+							"host": ["{{baseUrl}}"],
+							"path": ["search", "all-skill-data"]
+						}
+					}
+				},
+				{
+					"name": "3.7 Get Skill Distribution Report",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{hrToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/search/reports/skill-distribution",
+							"host": ["{{baseUrl}}"],
+							"path": ["search", "reports", "skill-distribution"]
+						}
+					}
+				},
+				{
+					"name": "3.8 Get Employee Skill Summary",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{hrToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/search/reports/employee-summary",
+							"host": ["{{baseUrl}}"],
+							"path": ["search", "reports", "employee-summary"]
+						}
+					}
+				},
+				{
+					"name": "3.9 Get Department Analysis",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{hrToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/search/reports/department-analysis",
+							"host": ["{{baseUrl}}"],
+							"path": ["search", "reports", "department-analysis"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "4. EMPLOYEE WORKFLOW - Self Rating",
+			"item": [
+				{
+					"name": "4.1 Get My Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{employeeToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/employees/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["employees", "me"]
+						}
+					}
+				},
+				{
+					"name": "4.2 Get All Skills (Public)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/skills",
+							"host": ["{{baseUrl}}"],
+							"path": ["skills"]
+						}
+					}
+				},
+				{
+					"name": "4.3 Self-Rate JavaScript Skill",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('employeeSkillId', jsonData.id);",
+									"    pm.environment.set('employeeSkillId', jsonData.id);",
+									"    console.log('EmployeeSkill ID:', jsonData.id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{employeeToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"skillId\": {{skillId}},\n  \"selfRating\": 4,\n  \"selfComments\": \"I have 3 years of experience with JavaScript, including React and Node.js\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/ratings/self-rate",
+							"host": ["{{baseUrl}}"],
+							"path": ["ratings", "self-rate"]
+						}
+					}
+				},
+				{
+					"name": "4.4 View My Ratings (Before Approval)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{employeeToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/ratings/my-ratings",
+							"host": ["{{baseUrl}}"],
+							"path": ["ratings", "my-ratings"]
+						},
+						"description": "Should only show self-rating, no manager rating yet"
+					}
+				},
+				{
+					"name": "4.5 Try to Change Demographics (FAIL)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{employeeToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"department\": \"Sales\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/employees/{{employeeId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["employees", "{{employeeId}}"]
+						},
+						"description": "Should FAIL - Only HR can change demographics"
+					}
+				}
+			]
+		},
+		{
+			"name": "5. MANAGER WORKFLOW - Approval",
+			"item": [
+				{
+					"name": "5.1 Get Pending Approvals",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{managerToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/ratings/pending-approvals",
+							"host": ["{{baseUrl}}"],
+							"path": ["ratings", "pending-approvals"]
+						}
+					}
+				},
+				{
+					"name": "5.2 View Team Ratings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{managerToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/ratings/team-ratings",
+							"host": ["{{baseUrl}}"],
+							"path": ["ratings", "team-ratings"]
+						}
+					}
+				},
+				{
+					"name": "5.3 Approve Employee Skill Rating",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{managerToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"managerRating\": 4,\n  \"managerComments\": \"Great JavaScript skills! Solid understanding of modern frameworks.\",\n  \"managerStatus\": \"APPROVED\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/ratings/manager/{{employeeSkillId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["ratings", "manager", "{{employeeSkillId}}"]
+						}
+					}
+				},
+				{
+					"name": "5.4 Reject a Rating (Example)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{managerToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"managerComments\": \"Need more experience before this rating\",\n  \"managerStatus\": \"REJECTED\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/ratings/manager/{{employeeSkillId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["ratings", "manager", "{{employeeSkillId}}"]
+						}
+					}
+				},
+				{
+					"name": "5.5 Modify and Approve",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{managerToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"managerRating\": 3,\n  \"managerComments\": \"Good skills but adjusting rating to 3 for accuracy\",\n  \"managerStatus\": \"MODIFIED\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/ratings/manager/{{employeeSkillId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["ratings", "manager", "{{employeeSkillId}}"]
+						}
+					}
+				},
+				{
+					"name": "5.6 Search Skills - Find Python Experts",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{managerToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/search/skills?keyword=python&minRating=4",
+							"host": ["{{baseUrl}}"],
+							"path": ["search", "skills"],
+							"query": [
+								{
+									"key": "keyword",
+									"value": "python"
+								},
+								{
+									"key": "minRating",
+									"value": "4"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "5.7 Try to Change Demographics (FAIL)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{managerToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"department\": \"Marketing\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/employees/{{employeeId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["employees", "{{employeeId}}"]
+						},
+						"description": "Should FAIL - Managers cannot change demographics"
+					}
+				}
+			]
+		},
+		{
+			"name": "6. MANAGER'S MANAGER WORKFLOW",
+			"item": [
+				{
+					"name": "6.1 Get Pending Approvals (Level 2)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{managerManagerToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/ratings/pending-approvals",
+							"host": ["{{baseUrl}}"],
+							"path": ["ratings", "pending-approvals"]
+						},
+						"description": "Shows ratings approved by manager, pending MM approval"
+					}
+				},
+				{
+					"name": "6.2 Final Approval by Manager's Manager",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{managerManagerToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"managerManagerRating\": 4,\n  \"managerManagerComments\": \"Final approval - excellent JavaScript skills\",\n  \"managerManagerStatus\": \"APPROVED\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/ratings/manager-manager/{{employeeSkillId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["ratings", "manager-manager", "{{employeeSkillId}}"]
+						}
+					}
+				},
+				{
+					"name": "6.3 Search Skills Across Organization",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{managerManagerToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/search/skills?keyword=javascript",
+							"host": ["{{baseUrl}}"],
+							"path": ["search", "skills"],
+							"query": [
+								{
+									"key": "keyword",
+									"value": "javascript"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "7. EMPLOYEE - View Approved Rating",
+			"item": [
+				{
+					"name": "7.1 View My Ratings (After Approval)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{employeeToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/ratings/my-ratings",
+							"host": ["{{baseUrl}}"],
+							"path": ["ratings", "my-ratings"]
+						},
+						"description": "Now employee can see manager and MM ratings + final rating"
+					}
+				}
+			]
+		},
+		{
+			"name": "8. SYSTEM ADMIN WORKFLOW",
+			"item": [
+				{
+					"name": "8.1 Get System Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{systemAdminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/system/stats",
+							"host": ["{{baseUrl}}"],
+							"path": ["system", "stats"]
+						}
+					}
+				},
+				{
+					"name": "8.2 Get Audit Logs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{systemAdminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/system/audit-logs?limit=50",
+							"host": ["{{baseUrl}}"],
+							"path": ["system", "audit-logs"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "50"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "8.3 Get Security Audit",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{systemAdminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/system/security-audit",
+							"host": ["{{baseUrl}}"],
+							"path": ["system", "security-audit"]
+						}
+					}
+				},
+				{
+					"name": "8.4 Create System Backup",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{systemAdminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/system/backup",
+							"host": ["{{baseUrl}}"],
+							"path": ["system", "backup"]
+						}
+					}
+				},
+				{
+					"name": "8.5 Get Backups History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{systemAdminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/system/backups",
+							"host": ["{{baseUrl}}"],
+							"path": ["system", "backups"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "9. NEGATIVE TESTS - Access Denied",
+			"item": [
+				{
+					"name": "9.1 Employee Try to Create Skill (FAIL)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{employeeToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"SQL\",\n  \"category\": \"Database\",\n  \"weightage\": 6\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/skills",
+							"host": ["{{baseUrl}}"],
+							"path": ["skills"]
+						},
+						"description": "Should return 403 - Only HR can create skills"
+					}
+				},
+				{
+					"name": "9.2 Manager Try to Delete Skill (FAIL)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{managerToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/skills/{{skillId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["skills", "{{skillId}}"]
+						},
+						"description": "Should return 403 - Only HR can delete skills"
+					}
+				},
+				{
+					"name": "9.3 Employee Try to View Team Ratings (FAIL)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{employeeToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/ratings/team-ratings",
+							"host": ["{{baseUrl}}"],
+							"path": ["ratings", "team-ratings"]
+						},
+						"description": "Should return 403 - Only managers can view team ratings"
+					}
+				},
+				{
+					"name": "9.4 Manager Try System Backup (FAIL)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{managerToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/system/backup",
+							"host": ["{{baseUrl}}"],
+							"path": ["system", "backup"]
+						},
+						"description": "Should return 403 - Only System Admin can create backups"
+					}
+				}
+			]
+		}
+	]
+}
