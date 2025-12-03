@@ -56,6 +56,7 @@ interface Project {
 			lastName: string
 		}
 	}>
+	assignmentsCount: number
 }
 
 export default function AllProjectsPage() {
@@ -79,7 +80,10 @@ export default function AllProjectsPage() {
 		try {
 			setLoading(true)
 			const data = await apiGet('/projects/all')
-			setProjects(data)
+			const projectsData = Array.isArray(data)
+				? data
+				: data.projects || []
+			setProjects(projectsData)
 		} catch (err: any) {
 			setError(err.message)
 		} finally {
@@ -91,7 +95,9 @@ export default function AllProjectsPage() {
 		if (statusFilter === 'all') {
 			setFilteredProjects(projects)
 		} else {
-			setFilteredProjects(projects.filter((p) => p.status === statusFilter))
+			setFilteredProjects(
+				projects.filter((p) => p.status === statusFilter)
+			)
 		}
 	}
 
@@ -103,22 +109,42 @@ export default function AllProjectsPage() {
 	const getStatusBadge = (status: string) => {
 		switch (status) {
 			case 'ACTIVE':
-				return <Badge className="bg-green-100 text-green-800">Active</Badge>
+				return (
+					<Badge className="bg-green-100 text-green-800">
+						Active
+					</Badge>
+				)
 			case 'PENDING':
-				return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>
+				return (
+					<Badge className="bg-yellow-100 text-yellow-800">
+						Pending
+					</Badge>
+				)
 			case 'COMPLETED':
-				return <Badge className="bg-blue-100 text-blue-800">Completed</Badge>
+				return (
+					<Badge className="bg-blue-100 text-blue-800">
+						Completed
+					</Badge>
+				)
 			case 'CANCELLED':
-				return <Badge className="bg-gray-100 text-gray-800">Cancelled</Badge>
+				return (
+					<Badge className="bg-gray-100 text-gray-800">
+						Cancelled
+					</Badge>
+				)
 			default:
 				return <Badge>{status}</Badge>
 		}
 	}
 
 	const getAssignmentStats = (project: Project) => {
-		const total = project.assignments.length
-		const pending = project.assignments.filter((a) => a.status === 'PENDING').length
-		const approved = project.assignments.filter((a) => a.status === 'APPROVED').length
+		const total = project.assignmentsCount
+		const pending = project.assignments.filter(
+			(a) => a.status === 'PENDING'
+		).length
+		const approved = project.assignments.filter(
+			(a) => a.status === 'APPROVED'
+		).length
 		return { total, pending, approved }
 	}
 
@@ -162,14 +188,22 @@ export default function AllProjectsPage() {
 				<div className="grid md:grid-cols-4 gap-4 mb-6">
 					<Card>
 						<CardContent className="pt-6">
-							<p className="text-2xl font-bold">{projects.length}</p>
-							<p className="text-sm text-gray-600">Total Projects</p>
+							<p className="text-2xl font-bold">
+								{projects.length}
+							</p>
+							<p className="text-sm text-gray-600">
+								Total Projects
+							</p>
 						</CardContent>
 					</Card>
 					<Card>
 						<CardContent className="pt-6">
 							<p className="text-2xl font-bold text-green-600">
-								{projects.filter((p) => p.status === 'ACTIVE').length}
+								{
+									projects.filter(
+										(p) => p.status === 'ACTIVE'
+									).length
+								}
 							</p>
 							<p className="text-sm text-gray-600">Active</p>
 						</CardContent>
@@ -177,7 +211,11 @@ export default function AllProjectsPage() {
 					<Card>
 						<CardContent className="pt-6">
 							<p className="text-2xl font-bold text-yellow-600">
-								{projects.filter((p) => p.status === 'PENDING').length}
+								{
+									projects.filter(
+										(p) => p.status === 'PENDING'
+									).length
+								}
 							</p>
 							<p className="text-sm text-gray-600">Pending</p>
 						</CardContent>
@@ -185,9 +223,14 @@ export default function AllProjectsPage() {
 					<Card>
 						<CardContent className="pt-6">
 							<p className="text-2xl font-bold text-blue-600">
-								{projects.reduce((sum, p) => sum + p.assignments.length, 0)}
+								{projects.reduce(
+									(sum, p) => sum + (p.assignmentsCount || 0),
+									0
+								)}
 							</p>
-							<p className="text-sm text-gray-600">Total Assignments</p>
+							<p className="text-sm text-gray-600">
+								Total Assignments
+							</p>
 						</CardContent>
 					</Card>
 				</div>
@@ -200,16 +243,29 @@ export default function AllProjectsPage() {
 								Projects List
 							</CardTitle>
 							<div className="w-48">
-								<Select value={statusFilter} onValueChange={setStatusFilter}>
+								<Select
+									value={statusFilter}
+									onValueChange={setStatusFilter}
+								>
 									<SelectTrigger>
 										<SelectValue placeholder="Filter by status" />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="all">All Statuses</SelectItem>
-										<SelectItem value="ACTIVE">Active</SelectItem>
-										<SelectItem value="PENDING">Pending</SelectItem>
-										<SelectItem value="COMPLETED">Completed</SelectItem>
-										<SelectItem value="CANCELLED">Cancelled</SelectItem>
+										<SelectItem value="all">
+											All Statuses
+										</SelectItem>
+										<SelectItem value="ACTIVE">
+											Active
+										</SelectItem>
+										<SelectItem value="PENDING">
+											Pending
+										</SelectItem>
+										<SelectItem value="COMPLETED">
+											Completed
+										</SelectItem>
+										<SelectItem value="CANCELLED">
+											Cancelled
+										</SelectItem>
 									</SelectContent>
 								</Select>
 							</div>
@@ -239,49 +295,77 @@ export default function AllProjectsPage() {
 										<TableHead>Required Skills</TableHead>
 										<TableHead>Assignments</TableHead>
 										<TableHead>Created</TableHead>
-										<TableHead className="text-right">Action</TableHead>
+										<TableHead className="text-right">
+											Action
+										</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
 									{filteredProjects.map((project) => {
-										const stats = getAssignmentStats(project)
+										const stats =
+											getAssignmentStats(project)
 										return (
 											<TableRow key={project.id}>
 												<TableCell>
 													<div>
-														<p className="font-medium">{project.name}</p>
+														<p className="font-medium">
+															{project.name}
+														</p>
 														<p className="text-xs text-gray-500 max-w-xs truncate">
-															{project.description}
+															{
+																project.description
+															}
 														</p>
 													</div>
 												</TableCell>
-												<TableCell>{getStatusBadge(project.status)}</TableCell>
+												<TableCell>
+													{getStatusBadge(
+														project.status
+													)}
+												</TableCell>
 												<TableCell>
 													<div className="flex items-center gap-2">
 														<Award className="w-4 h-4 text-purple-600" />
 														<span className="font-medium">
-															{project.requiredSkills.length}
+															{
+																project
+																	.requiredSkills
+																	.length
+															}
 														</span>
-														<span className="text-xs text-gray-500">skills</span>
+														<span className="text-xs text-gray-500">
+															skills
+														</span>
 													</div>
 												</TableCell>
 												<TableCell>
 													<div className="flex items-center gap-2">
 														<Users className="w-4 h-4 text-green-600" />
-														<span className="font-medium">{stats.total}</span>
+														<span className="font-medium">
+															{stats.total}
+														</span>
 														<span className="text-xs text-gray-500">
-															({stats.pending} pending, {stats.approved} approved)
+															({stats.pending}{' '}
+															pending,{' '}
+															{stats.approved}{' '}
+															approved)
 														</span>
 													</div>
 												</TableCell>
 												<TableCell className="text-sm text-gray-600">
-													{new Date(project.createdAt).toLocaleDateString()}
+													{new Date(
+														project.createdAt
+													).toLocaleDateString()}
 												</TableCell>
 												<TableCell className="text-right">
 													<Button
 														size="sm"
 														variant="outline"
-														onClick={() => openDetailsDialog(project)}
+														onClick={() =>
+															openDetailsDialog(
+																project
+															)
+														}
 													>
 														<Eye className="w-4 h-4 mr-1" />
 														View
@@ -298,7 +382,10 @@ export default function AllProjectsPage() {
 			</div>
 
 			{/* Details Dialog */}
-			<Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+			<Dialog
+				open={isDetailsDialogOpen}
+				onOpenChange={setIsDetailsDialogOpen}
+			>
 				<DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
 					<DialogHeader>
 						<DialogTitle>Project Details</DialogTitle>
@@ -321,7 +408,10 @@ export default function AllProjectsPage() {
 									{selectedProject.description}
 								</p>
 								<p className="text-xs text-gray-500">
-									Created: {new Date(selectedProject.createdAt).toLocaleDateString()}
+									Created:{' '}
+									{new Date(
+										selectedProject.createdAt
+									).toLocaleDateString()}
 								</p>
 							</div>
 
@@ -329,23 +419,30 @@ export default function AllProjectsPage() {
 							<div>
 								<h3 className="font-semibold mb-3 flex items-center gap-2">
 									<Award className="w-4 h-4 text-purple-600" />
-									Required Skills ({selectedProject.requiredSkills.length})
+									Required Skills (
+									{selectedProject.requiredSkills.length})
 								</h3>
 								<div className="grid grid-cols-2 gap-2">
-									{selectedProject.requiredSkills.map((rs) => (
-										<div
-											key={rs.id}
-											className="flex items-center justify-between p-3 bg-gray-50 rounded"
-										>
-											<div>
-												<p className="font-medium text-sm">{rs.skill.name}</p>
-												<p className="text-xs text-gray-500">
-													{rs.skill.category}
-												</p>
+									{selectedProject.requiredSkills.map(
+										(rs) => (
+											<div
+												key={rs.id}
+												className="flex items-center justify-between p-3 bg-gray-50 rounded"
+											>
+												<div>
+													<p className="font-medium text-sm">
+														{rs.skill.name}
+													</p>
+													<p className="text-xs text-gray-500">
+														{rs.skill.category}
+													</p>
+												</div>
+												<Badge variant="outline">
+													Weight: {rs.weight}
+												</Badge>
 											</div>
-											<Badge variant="outline">Weight: {rs.weight}</Badge>
-										</div>
-									))}
+										)
+									)}
 								</div>
 							</div>
 
@@ -353,44 +450,59 @@ export default function AllProjectsPage() {
 							<div>
 								<h3 className="font-semibold mb-3 flex items-center gap-2">
 									<Users className="w-4 h-4 text-green-600" />
-									Employee Assignments ({selectedProject.assignments.length})
+									Employee Assignments (
+									{selectedProject.assignmentsCount})
 								</h3>
-								{selectedProject.assignments.length === 0 ? (
+								{selectedProject.assignmentsCount === 0 ? (
 									<p className="text-sm text-gray-500 text-center py-4">
 										No assignments yet
 									</p>
 								) : (
 									<div className="space-y-2">
-										{selectedProject.assignments.map((assignment) => (
-											<div
-												key={assignment.id}
-												className="flex items-center justify-between p-3 bg-gray-50 rounded"
-											>
-												<p className="font-medium">
-													{assignment.employee.firstName}{' '}
-													{assignment.employee.lastName}
-												</p>
-												{assignment.status === 'APPROVED' ? (
-													<Badge className="bg-green-100 text-green-800">
-														Approved
-													</Badge>
-												) : assignment.status === 'PENDING' ? (
-													<Badge className="bg-yellow-100 text-yellow-800">
-														Pending Manager
-													</Badge>
-												) : (
-													<Badge className="bg-red-100 text-red-800">
-														Rejected
-													</Badge>
-												)}
-											</div>
-										))}
+										{selectedProject.assignments.map(
+											(assignment) => (
+												<div
+													key={assignment.id}
+													className="flex items-center justify-between p-3 bg-gray-50 rounded"
+												>
+													<p className="font-medium">
+														{
+															assignment.employee
+																.firstName
+														}{' '}
+														{
+															assignment.employee
+																.lastName
+														}
+													</p>
+													{assignment.status ===
+													'APPROVED' ? (
+														<Badge className="bg-green-100 text-green-800">
+															Approved
+														</Badge>
+													) : assignment.status ===
+													  'PENDING' ? (
+														<Badge className="bg-yellow-100 text-yellow-800">
+															Pending Manager
+														</Badge>
+													) : (
+														<Badge className="bg-red-100 text-red-800">
+															Rejected
+														</Badge>
+													)}
+												</div>
+											)
+										)}
 									</div>
 								)}
 							</div>
 
 							<div className="flex justify-end pt-4 border-t">
-								<Button onClick={() => setIsDetailsDialogOpen(false)}>
+								<Button
+									onClick={() =>
+										setIsDetailsDialogOpen(false)
+									}
+								>
 									Close
 								</Button>
 							</div>

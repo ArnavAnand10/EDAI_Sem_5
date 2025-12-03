@@ -131,7 +131,9 @@ export default function CreateProjectPage() {
 				<div className="container mx-auto px-4 py-8 max-w-4xl">
 					<div className="text-center py-12">
 						<CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
-						<h2 className="text-2xl font-bold mb-2">Project Created Successfully!</h2>
+						<h2 className="text-2xl font-bold mb-2">
+							Project Created Successfully!
+						</h2>
 						<p className="text-gray-600 mb-4">
 							Redirecting to candidate selection...
 						</p>
@@ -146,9 +148,12 @@ export default function CreateProjectPage() {
 			<Navigation />
 			<div className="container mx-auto px-4 py-8 max-w-4xl">
 				<div className="mb-6">
-					<h1 className="text-3xl font-bold">Create Project with AI</h1>
+					<h1 className="text-3xl font-bold">
+						Create Project with AI
+					</h1>
 					<p className="text-gray-600">
-						Describe your project and let AI generate skill requirements
+						Describe your project and let AI generate skill
+						requirements
 					</p>
 				</div>
 
@@ -178,7 +183,8 @@ export default function CreateProjectPage() {
 								disabled={generating}
 							/>
 							<p className="text-xs text-gray-500 mt-1">
-								Be specific about technologies, requirements, and project goals
+								Be specific about technologies, requirements,
+								and project goals
 							</p>
 						</div>
 
@@ -214,18 +220,25 @@ export default function CreateProjectPage() {
 							</CardHeader>
 							<CardContent className="space-y-4">
 								<div>
-									<Label htmlFor="project-name">Project Name</Label>
+									<Label htmlFor="project-name">
+										Project Name
+									</Label>
 									<Input
 										id="project-name"
 										value={editedProject.name}
 										onChange={(e) =>
-											setEditedProject({ ...editedProject, name: e.target.value })
+											setEditedProject({
+												...editedProject,
+												name: e.target.value,
+											})
 										}
 										placeholder="Project name"
 									/>
 								</div>
 								<div>
-									<Label htmlFor="project-description">Description</Label>
+									<Label htmlFor="project-description">
+										Description
+									</Label>
 									<textarea
 										id="project-description"
 										value={editedProject.description}
@@ -252,7 +265,8 @@ export default function CreateProjectPage() {
 							<CardContent>
 								{editedSkills.length === 0 ? (
 									<p className="text-gray-500 text-center py-8">
-										No skills generated. Try regenerating the project.
+										No skills generated. Try regenerating
+										the project.
 									</p>
 								) : (
 									<div className="space-y-3">
@@ -263,8 +277,14 @@ export default function CreateProjectPage() {
 											>
 												<div className="flex-1">
 													<div className="flex items-center gap-2 mb-1">
-														<p className="font-medium">{skill.skillName}</p>
-														<Badge className={getCategoryColor(skill.category)}>
+														<p className="font-medium">
+															{skill.skillName}
+														</p>
+														<Badge
+															className={getCategoryColor(
+																skill.category
+															)}
+														>
 															{skill.category}
 														</Badge>
 													</div>
@@ -280,7 +300,10 @@ export default function CreateProjectPage() {
 															onChange={(e) =>
 																updateSkillWeight(
 																	index,
-																	parseInt(e.target.value)
+																	parseInt(
+																		e.target
+																			.value
+																	)
 																)
 															}
 															className="flex-1"
@@ -293,7 +316,9 @@ export default function CreateProjectPage() {
 												<Button
 													size="sm"
 													variant="outline"
-													onClick={() => removeSkill(index)}
+													onClick={() =>
+														removeSkill(index)
+													}
 													className="text-red-600 hover:bg-red-50"
 												>
 													Remove
@@ -303,7 +328,8 @@ export default function CreateProjectPage() {
 									</div>
 								)}
 								<p className="text-xs text-gray-500 mt-4">
-									Adjust skill weights (1-10) to indicate importance for the project
+									Adjust skill weights (1-10) to indicate
+									importance for the project
 								</p>
 							</CardContent>
 						</Card>
@@ -321,7 +347,10 @@ export default function CreateProjectPage() {
 							>
 								Start Over
 							</Button>
-							<Button onClick={handleCreateProject} disabled={loading}>
+							<Button
+								onClick={handleCreateProject}
+								disabled={loading}
+							>
 								{loading ? (
 									<>
 										<Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -339,12 +368,25 @@ export default function CreateProjectPage() {
 				{!aiResponse && (
 					<Card className="bg-blue-50 border-blue-200">
 						<CardContent className="pt-6">
-							<h3 className="font-semibold mb-2">How it works:</h3>
+							<h3 className="font-semibold mb-2">
+								How it works:
+							</h3>
 							<ol className="text-sm text-gray-700 space-y-1 list-decimal list-inside">
-								<li>Describe your project requirements in detail</li>
-								<li>AI will analyze and generate project details with required skills</li>
-								<li>Review and adjust skill weights based on importance</li>
-								<li>Create the project and proceed to candidate selection</li>
+								<li>
+									Describe your project requirements in detail
+								</li>
+								<li>
+									AI will analyze and generate project details
+									with required skills
+								</li>
+								<li>
+									Review and adjust skill weights based on
+									importance
+								</li>
+								<li>
+									Create the project and proceed to candidate
+									selection
+								</li>
 							</ol>
 						</CardContent>
 					</Card>

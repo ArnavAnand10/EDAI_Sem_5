@@ -51,11 +51,17 @@ export default function HRDashboardPage() {
 			setLoading(true)
 			setError(null)
 
-			const [projectsData, skillsData, employeesData] = await Promise.all([
-				apiGet('/projects/all').catch(() => []),
-				apiGet('/skills').catch(() => []),
-				apiGet('/employees').catch(() => []),
-			])
+			const [projectsResp, skillsData, employeesData] = await Promise.all(
+				[
+					apiGet('/projects/all').catch(() => []),
+					apiGet('/skills').catch(() => []),
+					apiGet('/employees').catch(() => []),
+				]
+			)
+
+			const projectsData = Array.isArray(projectsResp)
+				? projectsResp
+				: projectsResp.projects || []
 
 			const activeProjects = projectsData.filter(
 				(p: any) => p.status === 'ACTIVE'
@@ -64,14 +70,16 @@ export default function HRDashboardPage() {
 			const pendingAssignments = projectsData.reduce(
 				(sum: number, p: any) =>
 					sum +
-					(p.assignments?.filter((a: any) => a.status === 'PENDING').length || 0),
+					(p.assignments?.filter((a: any) => a.status === 'PENDING')
+						.length || 0),
 				0
 			)
 
 			const recentProjects = projectsData
 				.sort(
 					(a: any, b: any) =>
-						new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+						new Date(b.createdAt).getTime() -
+						new Date(a.createdAt).getTime()
 				)
 				.slice(0, 5)
 
@@ -124,8 +132,12 @@ export default function HRDashboardPage() {
 						<CardContent className="pt-6">
 							<div className="flex items-start justify-between">
 								<div>
-									<p className="text-sm text-gray-600 mb-1">Total Projects</p>
-									<p className="text-3xl font-bold">{stats.totalProjects}</p>
+									<p className="text-sm text-gray-600 mb-1">
+										Total Projects
+									</p>
+									<p className="text-3xl font-bold">
+										{stats.totalProjects}
+									</p>
 									<p className="text-xs text-gray-500 mt-1">
 										{stats.activeProjects} active
 									</p>
@@ -139,9 +151,15 @@ export default function HRDashboardPage() {
 						<CardContent className="pt-6">
 							<div className="flex items-start justify-between">
 								<div>
-									<p className="text-sm text-gray-600 mb-1">Skills Database</p>
-									<p className="text-3xl font-bold">{stats.totalSkills}</p>
-									<p className="text-xs text-gray-500 mt-1">Available skills</p>
+									<p className="text-sm text-gray-600 mb-1">
+										Skills Database
+									</p>
+									<p className="text-3xl font-bold">
+										{stats.totalSkills}
+									</p>
+									<p className="text-xs text-gray-500 mt-1">
+										Available skills
+									</p>
 								</div>
 								<Award className="w-8 h-8 text-purple-600" />
 							</div>
@@ -152,9 +170,15 @@ export default function HRDashboardPage() {
 						<CardContent className="pt-6">
 							<div className="flex items-start justify-between">
 								<div>
-									<p className="text-sm text-gray-600 mb-1">Employees</p>
-									<p className="text-3xl font-bold">{stats.totalEmployees}</p>
-									<p className="text-xs text-gray-500 mt-1">In system</p>
+									<p className="text-sm text-gray-600 mb-1">
+										Employees
+									</p>
+									<p className="text-3xl font-bold">
+										{stats.totalEmployees}
+									</p>
+									<p className="text-xs text-gray-500 mt-1">
+										In system
+									</p>
 								</div>
 								<Users className="w-8 h-8 text-green-600" />
 							</div>
@@ -165,9 +189,15 @@ export default function HRDashboardPage() {
 						<CardContent className="pt-6">
 							<div className="flex items-start justify-between">
 								<div>
-									<p className="text-sm text-gray-600 mb-1">Pending</p>
-									<p className="text-3xl font-bold">{stats.pendingAssignments}</p>
-									<p className="text-xs text-gray-500 mt-1">Assignments</p>
+									<p className="text-sm text-gray-600 mb-1">
+										Pending
+									</p>
+									<p className="text-3xl font-bold">
+										{stats.pendingAssignments}
+									</p>
+									<p className="text-xs text-gray-500 mt-1">
+										Assignments
+									</p>
 								</div>
 								<TrendingUp className="w-8 h-8 text-yellow-600" />
 							</div>
@@ -187,9 +217,14 @@ export default function HRDashboardPage() {
 							</CardHeader>
 							<CardContent>
 								<p className="text-sm text-gray-600 mb-3">
-									Add, edit, or remove skills from the database
+									Add, edit, or remove skills from the
+									database
 								</p>
-								<Button variant="outline" size="sm" className="w-full">
+								<Button
+									variant="outline"
+									size="sm"
+									className="w-full"
+								>
 									Open <ArrowRight className="w-4 h-4 ml-2" />
 								</Button>
 							</CardContent>
@@ -206,10 +241,16 @@ export default function HRDashboardPage() {
 							</CardHeader>
 							<CardContent>
 								<p className="text-sm text-gray-600 mb-3">
-									Use AI to create new projects with skill requirements
+									Use AI to create new projects with skill
+									requirements
 								</p>
-								<Button variant="outline" size="sm" className="w-full">
-									Create <ArrowRight className="w-4 h-4 ml-2" />
+								<Button
+									variant="outline"
+									size="sm"
+									className="w-full"
+								>
+									Create{' '}
+									<ArrowRight className="w-4 h-4 ml-2" />
 								</Button>
 							</CardContent>
 						</Card>
@@ -227,8 +268,13 @@ export default function HRDashboardPage() {
 								<p className="text-sm text-gray-600 mb-3">
 									Find and assign best employees to projects
 								</p>
-								<Button variant="outline" size="sm" className="w-full">
-									Select <ArrowRight className="w-4 h-4 ml-2" />
+								<Button
+									variant="outline"
+									size="sm"
+									className="w-full"
+								>
+									Select{' '}
+									<ArrowRight className="w-4 h-4 ml-2" />
 								</Button>
 							</CardContent>
 						</Card>
@@ -246,8 +292,13 @@ export default function HRDashboardPage() {
 								<p className="text-sm text-gray-600 mb-3">
 									View and manage all projects and assignments
 								</p>
-								<Button variant="outline" size="sm" className="w-full">
-									View All <ArrowRight className="w-4 h-4 ml-2" />
+								<Button
+									variant="outline"
+									size="sm"
+									className="w-full"
+								>
+									View All{' '}
+									<ArrowRight className="w-4 h-4 ml-2" />
 								</Button>
 							</CardContent>
 						</Card>
@@ -271,9 +322,14 @@ export default function HRDashboardPage() {
 										className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
 									>
 										<div>
-											<p className="font-medium">{project.name}</p>
+											<p className="font-medium">
+												{project.name}
+											</p>
 											<p className="text-xs text-gray-500">
-												Created {new Date(project.createdAt).toLocaleDateString()}
+												Created{' '}
+												{new Date(
+													project.createdAt
+												).toLocaleDateString()}
 											</p>
 										</div>
 										<div className="flex items-center gap-3">
@@ -281,7 +337,8 @@ export default function HRDashboardPage() {
 												className={`px-3 py-1 rounded-full text-xs font-medium ${
 													project.status === 'ACTIVE'
 														? 'bg-green-100 text-green-800'
-														: project.status === 'PENDING'
+														: project.status ===
+														  'PENDING'
 														? 'bg-yellow-100 text-yellow-800'
 														: 'bg-gray-100 text-gray-800'
 												}`}
@@ -289,7 +346,10 @@ export default function HRDashboardPage() {
 												{project.status}
 											</span>
 											<Link href={`/hr/projects`}>
-												<Button size="sm" variant="ghost">
+												<Button
+													size="sm"
+													variant="ghost"
+												>
 													View
 												</Button>
 											</Link>

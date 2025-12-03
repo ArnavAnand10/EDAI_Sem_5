@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
 	Select,
-	SelectContent,
-	SelectItem,
 	SelectTrigger,
 	SelectValue,
+	SelectContent,
+	SelectItem,
 } from '@/components/ui/select'
 import {
 	Table,
@@ -59,16 +59,16 @@ interface Project {
 
 interface Candidate {
 	employeeId: number
+	name: string
+	email?: string
+	department?: string | null
+	position?: string | null
+	managerId?: number | null
 	skillIndex: number
 	matchPercentage: number
-	employee: {
-		id: number
-		firstName: string
-		lastName: string
-		department?: string
-		position?: string
-	}
-	matchedSkills: Array<{
+	missingSkills?: string[]
+	// optional detailed breakdown (may not be present)
+	matchedSkills?: Array<{
 		skill: {
 			name: string
 			category: string
@@ -77,17 +77,23 @@ interface Candidate {
 		requiredWeight: number
 	}>
 }
-
 export default function CandidateSelectionPage() {
 	const [projects, setProjects] = useState<Project[]>([])
 	const [selectedProjectId, setSelectedProjectId] = useState<string>('')
 	const [candidates, setCandidates] = useState<Candidate[]>([])
+	const [analysisProject, setAnalysisProject] = useState<any>(null)
+	const [totalCandidatesCount, setTotalCandidatesCount] = useState<
+		number | null
+	>(null)
+	const [assignedEmployees, setAssignedEmployees] = useState<any[]>([])
+	const [isAssignedDialogOpen, setIsAssignedDialogOpen] = useState(false)
 	const [loading, setLoading] = useState(false)
 	const [analyzing, setAnalyzing] = useState(false)
 	const [assigning, setAssigning] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 
-	const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null)
+	const [selectedCandidate, setSelectedCandidate] =
+		useState<Candidate | null>(null)
 	const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
 	const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
 	const [assignComments, setAssignComments] = useState('')
@@ -100,8 +106,9 @@ export default function CandidateSelectionPage() {
 		try {
 			setLoading(true)
 			const data = await apiGet('/projects/all')
-			const activeProjects = data.filter(
-				(p: Project) => p.status === 'ACTIVE' || p.status === 'PENDING'
+			const projectsData = data.projects || []
+			const activeProjects = projectsData.filter(
+				(p: Project) => p.status === 'OPEN' || p.status === 'PENDING'
 			)
 			setProjects(activeProjects)
 
@@ -124,11 +131,40 @@ export default function CandidateSelectionPage() {
 		try {
 			setAnalyzing(true)
 			setError(null)
-			const data = await apiGet(`/projects/${selectedProjectId}/candidates`)
-			setCandidates(data)
+			const data = await apiGet(
+				`/projects/${selectedProjectId}/candidates`
+			)
+
+			// Support two shapes: array (legacy) or object { project, candidates, totalCandidates }
+			if (Array.isArray(data)) {
+				setCandidates(data)
+				setAnalysisProject(null)
+				setTotalCandidatesCount(data.length)
+				setAssignedEmployees([])
+			} else if (data && data.candidates) {
+				setCandidates(data.candidates)
+				setAnalysisProject(data.project || null)
+				setTotalCandidatesCount(
+					data.totalCandidates ?? data.candidates.length
+				)
+				setAssignedEmployees(data.assignedEmployees || [])
+			} else {
+				setCandidates(data.candidates || [])
+				setAnalysisProject(data.project || null)
+				setTotalCandidatesCount(
+					(data && data.totalCandidates) ||
+						(data.candidates && data.candidates.length) ||
+						0
+				)
+				setAssignedEmployees(
+					data && data.assignedEmployees ? data.assignedEmployees : []
+				)
+			}
 		} catch (err: any) {
 			setError(err.message)
 			setCandidates([])
+			setAnalysisProject(null)
+			setTotalCandidatesCount(null)
 		} finally {
 			setAnalyzing(false)
 		}
@@ -153,18 +189,49 @@ export default function CandidateSelectionPage() {
 			setAssigning(true)
 			setError(null)
 
-			await apiPost('/projects/assign', {
-				projectId: parseInt(selectedProjectId),
-				employeeId: selectedCandidate.employeeId,
-				comments: assignComments,
-			})
-
-			// Remove assigned candidate from list
-			setCandidates(
-				candidates.filter((c) => c.employeeId !== selectedCandidate.employeeId)
+			// Call backend bulk-select endpoint with a single employee
+			const resp = await apiPost(
+				`/projects/${selectedProjectId}/select-employees`,
+				{ employeeIds: [selectedCandidate.employeeId] }
 			)
-			setIsAssignDialogOpen(false)
-			setSelectedCandidate(null)
+
+			// Handle response: if assignments created, remove candidate from list
+			if (resp && resp.assignments && resp.assignments.length > 0) {
+				// Add to assignedEmployees preview (backend returns basic assignment info)
+				setAssignedEmployees((prev) => [
+					...prev,
+					...resp.assignments.map((a: any) => ({
+						employeeId: a.employeeId,
+						name: a.employeeName,
+						email: a.employeeEmail,
+						managerId: a.managerId,
+						status: a.status,
+					})),
+				])
+				setCandidates(
+					candidates.filter(
+						(c) => c.employeeId !== selectedCandidate.employeeId
+					)
+				)
+				setIsAssignDialogOpen(false)
+				setSelectedCandidate(null)
+				return
+			}
+
+			// If there were per-employee errors, show them
+			if (resp && resp.errors && resp.errors.length > 0) {
+				setError(
+					resp.errors.map((e: any) => e.error || e.message).join('; ')
+				)
+				return
+			}
+
+			// Fallback: show message if returned
+			setError(
+				resp && resp.message
+					? resp.message
+					: 'Failed to assign employee'
+			)
 		} catch (err: any) {
 			setError(err.message)
 		} finally {
@@ -180,9 +247,17 @@ export default function CandidateSelectionPage() {
 
 	const getScoreBadge = (score: number) => {
 		if (score >= 70)
-			return <Badge className="bg-green-100 text-green-800">Excellent Match</Badge>
+			return (
+				<Badge className="bg-green-100 text-green-800">
+					Excellent Match
+				</Badge>
+			)
 		if (score >= 50)
-			return <Badge className="bg-yellow-100 text-yellow-800">Good Match</Badge>
+			return (
+				<Badge className="bg-yellow-100 text-yellow-800">
+					Good Match
+				</Badge>
+			)
 		return <Badge className="bg-red-100 text-red-800">Weak Match</Badge>
 	}
 
@@ -200,6 +275,8 @@ export default function CandidateSelectionPage() {
 			</ProtectedRoute>
 		)
 	}
+
+	console.log('Candidates', candidates)
 
 	return (
 		<ProtectedRoute allowedRoles={['HR']}>
@@ -230,9 +307,12 @@ export default function CandidateSelectionPage() {
 						{projects.length === 0 ? (
 							<div className="text-center py-8">
 								<Briefcase className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-								<p className="text-gray-600 mb-2">No active projects found</p>
+								<p className="text-gray-600 mb-2">
+									No active projects found
+								</p>
 								<p className="text-sm text-gray-500">
-									Create a project first to start matching candidates
+									Create a project first to start matching
+									candidates
 								</p>
 							</div>
 						) : (
@@ -259,7 +339,10 @@ export default function CandidateSelectionPage() {
 											</SelectContent>
 										</Select>
 									</div>
-									<Button onClick={handleAnalyzeCandidates} disabled={analyzing}>
+									<Button
+										onClick={handleAnalyzeCandidates}
+										disabled={analyzing}
+									>
 										{analyzing ? (
 											<>
 												<Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -276,7 +359,9 @@ export default function CandidateSelectionPage() {
 
 								{selectedProject && (
 									<div className="bg-blue-50 p-4 rounded-lg">
-										<h3 className="font-semibold mb-2">{selectedProject.name}</h3>
+										<h3 className="font-semibold mb-2">
+											{selectedProject.name}
+										</h3>
 										<p className="text-sm text-gray-700 mb-3">
 											{selectedProject.description}
 										</p>
@@ -284,16 +369,224 @@ export default function CandidateSelectionPage() {
 											<p className="text-xs font-medium text-gray-600 mb-2">
 												Required Skills:
 											</p>
+
+											{/* Analysis Summary (shows after Analyze API returns object) */}
+											{(analysisProject ||
+												totalCandidatesCount !==
+													null) && (
+												<Card className="mb-6">
+													<CardHeader>
+														<CardTitle className="flex items-center gap-2">
+															<TrendingUp className="w-5 h-5 text-purple-600" />
+															Project Analysis
+														</CardTitle>
+													</CardHeader>
+													<CardContent>
+														<div className="grid md:grid-cols-3 gap-4 items-center">
+															<div>
+																<p className="text-xs text-gray-600">
+																	Project
+																</p>
+																<p className="font-semibold">
+																	{analysisProject?.name ||
+																		selectedProject?.name}
+																</p>
+																<p className="text-sm text-gray-700">
+																	{analysisProject?.description ||
+																		selectedProject?.description}
+																</p>
+															</div>
+															<div>
+																<p className="text-xs text-gray-600">
+																	Required
+																	Skills
+																</p>
+																<div className="flex flex-wrap gap-2 mt-2">
+																	{analysisProject?.requiredSkills
+																		? analysisProject.requiredSkills.map(
+																				(
+																					rs: any,
+																					i: number
+																				) => (
+																					<Badge
+																						key={
+																							i
+																						}
+																						variant="outline"
+																						className="text-xs"
+																					>
+																						{
+																							rs.name
+																						}{' '}
+																						(Weight:{' '}
+																						{
+																							rs.weight
+																						}
+
+																						)
+																					</Badge>
+																				)
+																		  )
+																		: selectedProject?.requiredSkills.map(
+																				(
+																					rs: any
+																				) => (
+																					<Badge
+																						key={
+																							rs.id
+																						}
+																						variant="outline"
+																						className="text-xs"
+																					>
+																						{
+																							rs
+																								.skill
+																								.name
+																						}{' '}
+																						(Weight:{' '}
+																						{
+																							rs.weight
+																						}
+
+																						)
+																					</Badge>
+																				)
+																		  )}
+																</div>
+															</div>
+															<div className="text-right">
+																<p className="text-xs text-gray-600">
+																	Candidates
+																</p>
+																<p className="text-3xl font-bold text-purple-600">
+																	{totalCandidatesCount ??
+																		candidates.length}
+																</p>
+																{candidates.length >
+																	0 && (
+																	<>
+																		<p className="text-xs text-gray-500">
+																			Top
+																			match:{' '}
+																			<span
+																				className={`font-semibold ${getScoreColor(
+																					Math.max(
+																						...candidates.map(
+																							(
+																								c
+																							) =>
+																								c.skillIndex
+																						)
+																					)
+																				)}`}
+																			>
+																				{Math.max(
+																					...candidates.map(
+																						(
+																							c
+																						) =>
+																							c.skillIndex
+																					)
+																				).toFixed(
+																					1
+																				)}
+																			</span>
+																		</p>
+																		<p className="text-xs text-gray-500">
+																			Average:{' '}
+																			<span className="font-semibold">
+																				{(
+																					candidates.reduce(
+																						(
+																							s,
+																							c
+																						) =>
+																							s +
+																							c.skillIndex,
+																						0
+																					) /
+																					candidates.length
+																				).toFixed(
+																					1
+																				)}
+																			</span>
+																		</p>
+																	</>
+																)}
+															</div>
+														</div>
+													</CardContent>
+												</Card>
+											)}
+											<div className="mt-3 text-left">
+												<p className="text-xs text-gray-600 mb-1">
+													Assigned
+												</p>
+												<div className="flex items-center gap-2 justify-start py-4">
+													{assignedEmployees &&
+													assignedEmployees.length >
+														0 ? (
+														<>
+															{assignedEmployees
+																.slice(0, 3)
+																.map(
+																	(
+																		a: any
+																	) => (
+																		<span
+																			key={
+																				a.employeeId
+																			}
+																			className="text-sm bg-gray-100 px-2 py-1 rounded"
+																		>
+																			{
+																				a.name
+																			}
+																		</span>
+																	)
+																)}
+															{assignedEmployees.length >
+																3 && (
+																<span className="text-sm text-gray-500">
+																	+
+																	{assignedEmployees.length -
+																		3}{' '}
+																	more
+																</span>
+															)}
+															<Button
+																size="sm"
+																onClick={() =>
+																	setIsAssignedDialogOpen(
+																		true
+																	)
+																}
+															>
+																View all
+																assigned
+															</Button>
+														</>
+													) : (
+														<span className="text-sm text-gray-500">
+															None
+														</span>
+													)}
+												</div>
+											</div>
 											<div className="flex flex-wrap gap-2">
-												{selectedProject.requiredSkills.map((rs) => (
-													<Badge
-														key={rs.id}
-														variant="outline"
-														className="text-xs"
-													>
-														{rs.skill.name} (Weight: {rs.weight})
-													</Badge>
-												))}
+												{selectedProject.requiredSkills.map(
+													(rs) => (
+														<Badge
+															key={rs.id}
+															variant="outline"
+															className="text-xs"
+														>
+															{rs.skill.name}{' '}
+															(Weight: {rs.weight}
+															)
+														</Badge>
+													)
+												)}
 											</div>
 										</div>
 									</div>
@@ -321,7 +614,9 @@ export default function CandidateSelectionPage() {
 										<TableHead>Skill Index</TableHead>
 										<TableHead>Match %</TableHead>
 										<TableHead>Match Quality</TableHead>
-										<TableHead className="text-right">Actions</TableHead>
+										<TableHead className="text-right">
+											Actions
+										</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -330,16 +625,16 @@ export default function CandidateSelectionPage() {
 											<TableCell>
 												<div>
 													<p className="font-medium">
-														{candidate.employee.firstName}{' '}
-														{candidate.employee.lastName}
+														{candidate.name}
 													</p>
 													<p className="text-xs text-gray-500">
-														{candidate.employee.position || 'Employee'}
+														{candidate.position ||
+															'Employee'}
 													</p>
 												</div>
 											</TableCell>
 											<TableCell className="text-sm">
-												{candidate.employee.department || 'N/A'}
+												{candidate.department || 'N/A'}
 											</TableCell>
 											<TableCell>
 												<div className="flex items-center gap-2">
@@ -349,9 +644,13 @@ export default function CandidateSelectionPage() {
 															candidate.skillIndex
 														)}`}
 													>
-														{candidate.skillIndex.toFixed(1)}
+														{candidate.skillIndex.toFixed(
+															1
+														)}
 													</span>
-													<span className="text-gray-400">/100</span>
+													<span className="text-gray-400">
+														/100
+													</span>
 												</div>
 											</TableCell>
 											<TableCell>
@@ -360,22 +659,37 @@ export default function CandidateSelectionPage() {
 														candidate.matchPercentage
 													)}`}
 												>
-													{candidate.matchPercentage.toFixed(0)}%
+													{candidate.matchPercentage.toFixed(
+														0
+													)}
+													%
 												</span>
 											</TableCell>
-											<TableCell>{getScoreBadge(candidate.skillIndex)}</TableCell>
+											<TableCell>
+												{getScoreBadge(
+													candidate.matchPercentage
+												)}
+											</TableCell>
 											<TableCell className="text-right">
 												<div className="flex justify-end gap-2">
 													<Button
 														size="sm"
 														variant="outline"
-														onClick={() => openDetailsDialog(candidate)}
+														onClick={() =>
+															openDetailsDialog(
+																candidate
+															)
+														}
 													>
 														Details
 													</Button>
 													<Button
 														size="sm"
-														onClick={() => openAssignDialog(candidate)}
+														onClick={() =>
+															openAssignDialog(
+																candidate
+															)
+														}
 													>
 														Assign
 													</Button>
@@ -398,15 +712,77 @@ export default function CandidateSelectionPage() {
 								No candidates analyzed yet
 							</p>
 							<p className="text-gray-500 text-sm">
-								Click "Analyze Candidates" to find the best matches
+								Click "Analyze Candidates" to find the best
+								matches
 							</p>
 						</CardContent>
 					</Card>
 				)}
 			</div>
 
+			{/* Assigned Employees Dialog */}
+			<Dialog
+				open={isAssignedDialogOpen}
+				onOpenChange={setIsAssignedDialogOpen}
+			>
+				<DialogContent className="max-w-3xl">
+					<DialogHeader>
+						<DialogTitle>Assigned Employees</DialogTitle>
+						<DialogDescription>
+							Employees already assigned to this project
+						</DialogDescription>
+					</DialogHeader>
+
+					{assignedEmployees.length === 0 ? (
+						<div className="p-6 text-center text-sm text-gray-600">
+							No employees are currently assigned to this project.
+						</div>
+					) : (
+						<div className="space-y-3">
+							{assignedEmployees.map((a) => (
+								<div
+									key={a.employeeId}
+									className="p-3 bg-gray-50 rounded flex items-center justify-between"
+								>
+									<div>
+										<p className="font-medium">{a.name}</p>
+										<p className="text-xs text-gray-500">
+											{a.position || 'Employee'}
+										</p>
+										<p className="text-xs text-gray-500">
+											{a.email}
+										</p>
+									</div>
+									<div className="text-right text-sm text-gray-600">
+										<p>{a.status}</p>
+										<p className="text-xs">
+											Selected:{' '}
+											{new Date(
+												a.selectedAt
+											).toLocaleString()}
+										</p>
+									</div>
+								</div>
+							))}
+						</div>
+					)}
+
+					<div className="flex justify-end mt-4">
+						<Button
+							variant="outline"
+							onClick={() => setIsAssignedDialogOpen(false)}
+						>
+							Close
+						</Button>
+					</div>
+				</DialogContent>
+			</Dialog>
+
 			{/* Details Dialog */}
-			<Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+			<Dialog
+				open={isDetailsDialogOpen}
+				onOpenChange={setIsDetailsDialogOpen}
+			>
 				<DialogContent className="max-w-2xl">
 					<DialogHeader>
 						<DialogTitle>Candidate Details</DialogTitle>
@@ -419,25 +795,34 @@ export default function CandidateSelectionPage() {
 						<div className="space-y-6">
 							{/* Employee Info */}
 							<div className="bg-gray-50 p-4 rounded-lg">
-								<h3 className="font-semibold mb-2">Employee Information</h3>
+								<h3 className="font-semibold mb-2">
+									Employee Information
+								</h3>
 								<div className="grid grid-cols-2 gap-2 text-sm">
 									<div>
-										<span className="text-gray-600">Name:</span>{' '}
+										<span className="text-gray-600">
+											Name:
+										</span>{' '}
 										<span className="font-medium">
-											{selectedCandidate.employee.firstName}{' '}
-											{selectedCandidate.employee.lastName}
+											{selectedCandidate.name}
 										</span>
 									</div>
 									<div>
-										<span className="text-gray-600">Department:</span>{' '}
+										<span className="text-gray-600">
+											Department:
+										</span>{' '}
 										<span className="font-medium">
-											{selectedCandidate.employee.department || 'N/A'}
+											{selectedCandidate.department ||
+												'N/A'}
 										</span>
 									</div>
 									<div>
-										<span className="text-gray-600">Position:</span>{' '}
+										<span className="text-gray-600">
+											Position:
+										</span>{' '}
 										<span className="font-medium">
-											{selectedCandidate.employee.position || 'N/A'}
+											{selectedCandidate.position ||
+												'N/A'}
 										</span>
 									</div>
 								</div>
@@ -446,51 +831,99 @@ export default function CandidateSelectionPage() {
 							{/* Match Scores */}
 							<div className="grid grid-cols-2 gap-4">
 								<div className="bg-blue-50 p-4 rounded-lg">
-									<p className="text-sm text-gray-600">Skill Index</p>
+									<p className="text-sm text-gray-600">
+										Skill Index
+									</p>
 									<p className="text-3xl font-bold text-blue-600">
-										{selectedCandidate.skillIndex.toFixed(1)}
+										{selectedCandidate.skillIndex.toFixed(
+											1
+										)}
 									</p>
 								</div>
 								<div className="bg-green-50 p-4 rounded-lg">
-									<p className="text-sm text-gray-600">Match Percentage</p>
+									<p className="text-sm text-gray-600">
+										Match Percentage
+									</p>
 									<p className="text-3xl font-bold text-green-600">
-										{selectedCandidate.matchPercentage.toFixed(0)}%
+										{selectedCandidate.matchPercentage.toFixed(
+											0
+										)}
+										%
 									</p>
 								</div>
 							</div>
 
 							{/* Matched Skills */}
 							<div>
-								<h3 className="font-semibold mb-3">Matched Skills</h3>
+								<h3 className="font-semibold mb-3">
+									Matched Skills
+								</h3>
 								<div className="space-y-2">
-									{selectedCandidate.matchedSkills.map((ms, idx) => (
-										<div
-											key={idx}
-											className="flex items-center justify-between p-3 bg-gray-50 rounded"
-										>
-											<div className="flex-1">
-												<p className="font-medium">{ms.skill.name}</p>
-												<p className="text-xs text-gray-500">{ms.skill.category}</p>
-											</div>
-											<div className="flex items-center gap-4">
-												<div className="text-right">
-													<p className="text-xs text-gray-600">Employee Rating</p>
-													<p className="font-semibold">{ms.employeeRating}/10</p>
+									{selectedCandidate.matchedSkills &&
+									selectedCandidate.matchedSkills.length >
+										0 ? (
+										selectedCandidate.matchedSkills.map(
+											(ms, idx) => (
+												<div
+													key={idx}
+													className="flex items-center justify-between p-3 bg-gray-50 rounded"
+												>
+													<div className="flex-1">
+														<p className="font-medium">
+															{ms.skill.name}
+														</p>
+														<p className="text-xs text-gray-500">
+															{ms.skill.category}
+														</p>
+													</div>
+													<div className="flex items-center gap-4">
+														<div className="text-right">
+															<p className="text-xs text-gray-600">
+																Employee Rating
+															</p>
+															<p className="font-semibold">
+																{
+																	ms.employeeRating
+																}
+																/10
+															</p>
+														</div>
+														<div className="text-right">
+															<p className="text-xs text-gray-600">
+																Required Weight
+															</p>
+															<p className="font-semibold">
+																{
+																	ms.requiredWeight
+																}
+															</p>
+														</div>
+													</div>
 												</div>
-												<div className="text-right">
-													<p className="text-xs text-gray-600">Required Weight</p>
-													<p className="font-semibold">{ms.requiredWeight}</p>
-												</div>
-											</div>
+											)
+										)
+									) : (
+										<div className="p-4 bg-gray-50 rounded text-sm text-gray-600">
+											No detailed skill breakdown
+											available. Missing skills:{' '}
+											{selectedCandidate.missingSkills &&
+											selectedCandidate.missingSkills
+												.length > 0
+												? selectedCandidate.missingSkills.join(
+														', '
+												  )
+												: 'None'}
 										</div>
-									))}
+									)}
 								</div>
 							</div>
 
 							<div className="flex gap-3 justify-end pt-4 border-t">
 								<Button
 									variant="outline"
-									onClick={() => setIsDetailsDialogOpen(false)}
+									onClick={() =>
+										setIsDetailsDialogOpen(false)
+									}
 								>
 									Close
 								</Button>
@@ -509,7 +942,10 @@ export default function CandidateSelectionPage() {
 			</Dialog>
 
 			{/* Assign Dialog */}
-			<Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+			<Dialog
+				open={isAssignDialogOpen}
+				onOpenChange={setIsAssignDialogOpen}
+			>
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>Assign Employee to Project</DialogTitle>
@@ -528,21 +964,29 @@ export default function CandidateSelectionPage() {
 
 							<div className="bg-blue-50 p-4 rounded-lg">
 								<p className="font-medium">
-									{selectedCandidate.employee.firstName}{' '}
-									{selectedCandidate.employee.lastName}
+									{selectedCandidate.name}
 								</p>
 								<p className="text-sm text-gray-600">
-									Skill Index: {selectedCandidate.skillIndex.toFixed(1)} | Match:{' '}
-									{selectedCandidate.matchPercentage.toFixed(0)}%
+									Skill Index:{' '}
+									{selectedCandidate.skillIndex.toFixed(1)} |
+									Match:{' '}
+									{selectedCandidate.matchPercentage.toFixed(
+										0
+									)}
+									%
 								</p>
 							</div>
 
 							<div>
-								<Label htmlFor="comments">Comments (Optional)</Label>
+								<Label htmlFor="comments">
+									Comments (Optional)
+								</Label>
 								<textarea
 									id="comments"
 									value={assignComments}
-									onChange={(e) => setAssignComments(e.target.value)}
+									onChange={(e) =>
+										setAssignComments(e.target.value)
+									}
 									className="w-full px-3 py-2 border border-gray-300 rounded-md min-h-[80px]"
 									placeholder="Add any notes for the manager..."
 								/>
@@ -556,7 +1000,10 @@ export default function CandidateSelectionPage() {
 								>
 									Cancel
 								</Button>
-								<Button onClick={handleAssign} disabled={assigning}>
+								<Button
+									onClick={handleAssign}
+									disabled={assigning}
+								>
 									{assigning ? (
 										<>
 											<Loader2 className="w-4 h-4 mr-2 animate-spin" />
