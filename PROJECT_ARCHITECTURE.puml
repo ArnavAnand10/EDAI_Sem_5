@@ -1,0 +1,161 @@
+@startuml ComponentDiagram
+' System Architecture - Component Diagram
+skinparam componentStyle rectangle
+
+package "Frontend" {
+  [Next.js App] as NextJS
+  [AuthContext / ProtectedRoute] as AuthCtx
+  [UI Components] as UI
+}
+
+package "Backend" {
+  [Express API Server] as Express
+  component "Controllers" as Controllers {
+    [AuthController]
+    [EmployeeController]
+    [AdminController]
+    [SkillController]
+    [RatingController]
+    [ProjectController]
+  }
+  [Prisma Client] as Prisma
+}
+
+database "SQLite (Prisma DB)" as DB
+
+cloud "Google Gemini (AI)" as Gemini
+
+' Connections
+NextJS --> Express : "HTTPS REST /api/*"
+NextJS --> AuthCtx : "Auth state / routing"
+NextJS --> UI : "Render pages (Employee/Manager/HR/Admin)"
+
+Express --> Controllers : "Route handlers"
+Controllers --> Prisma : "DB queries (Prisma Client)"
+Prisma --> DB : "SQL persistence"
+Controllers --> Gemini : "POST: analyze / generate (projects)"
+
+' highlight key flows
+AuthController --> Prisma : "create/find users, hash passwords"
+AdminController --> Prisma : "assignManager, getAllUsers"
+EmployeeController --> Prisma : "profile, skills"
+RatingController --> Prisma : "employee skill ratings & approvals"
+ProjectController --> Prisma : "projects, skill requirements, assignments"
+
+note right of NextJS
+  Pages:
+  - /auth (login/register)
+  - /employee (skills, profile)
+  - /manager (approvals, projects)
+  - /hr (skills CRUD, project creation)
+  - /admin (user management, assignments)
+end note
+
+@enduml
+
+
+@startuml ClassDiagram
+' Database / Domain Model (class/ER diagram)
+skinparam classAttributeIconSize 0
+
+class User {
+  +Int id
+  +String email
+  +String password
+  +String role
+  +DateTime createdAt
+  +DateTime updatedAt
+}
+
+class Employee {
+  +Int id
+  +String firstName
+  +String lastName
+  +String department
+  +String position
+  +DateTime dateOfJoining
+  +Int userId
+  +Int? managerId
+  +Int? hrId
+  +DateTime createdAt
+  +DateTime updatedAt
+}
+
+class Skill {
+  +Int id
+  +String name
+  +String? category
+  +String? description
+  +Int weight
+}
+
+class EmployeeSkill {
+  +Int id
+  +Int employeeId
+  +Int skillId
+  +Int selfRating
+  +String? selfComments
+  +Int? managerRating
+  +String? managerComments
+  +String managerStatus
+  +DateTime? managerApprovedAt
+  +Int? managerApprovedBy
+  +DateTime createdAt
+  +DateTime updatedAt
+}
+
+class Project {
+  +Int id
+  +String name
+  +String description
+  +Int createdBy
+  +String status
+  +DateTime createdAt
+}
+
+class ProjectSkillRequirement {
+  +Int id
+  +Int projectId
+  +Int? skillId
+  +String skillName
+  +Int weight
+  +Boolean isMissing
+}
+
+class ProjectCandidateMatch {
+  +Int id
+  +Int projectId
+  +Int employeeId
+  +Float skillIndex
+  +Float matchPercentage
+  +String missingSkills
+}
+
+class ProjectAssignment {
+  +Int id
+  +Int projectId
+  +Int employeeId
+  +Int managerId
+  +Int selectedBy
+  +String managerStatus
+  +String? managerComments
+  +DateTime? approvedAt
+}
+
+' Relationships
+User "1" -- "0..1" Employee : has
+Employee "1" -- "*" EmployeeSkill : owns
+Skill "1" -- "*" EmployeeSkill : ratedIn
+Project "1" -- "*" ProjectSkillRequirement : requires
+Project "1" -- "*" ProjectCandidateMatch : matches
+Project "1" -- "*" ProjectAssignment : assigns
+Employee "1" -- "*" ProjectCandidateMatch : candidate
+Employee "1" -- "*" ProjectAssignment : assigned
+Employee "0..1" -right- "0..*" Employee : manages
+
+note right of Employee
+  managerId stores User.id of the manager
+  for self-referencing hierarchy
+end note
+
+@enduml
