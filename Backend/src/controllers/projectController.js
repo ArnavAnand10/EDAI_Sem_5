@@ -570,12 +570,18 @@ async function selectEmployees(req, res) {
 			return res.status(404).json({ error: 'Project not found' })
 		}
 
-		// Get selected employees with their managers
+		// Get selected employees with their managers and user relation
 		const employees = await prisma.employee.findMany({
 			where: {
 				id: { in: employeeIds },
 			},
+			include: {
+				user: true,
+			},
 		})
+
+		// Debug: log employees fetched
+		console.log('Selected employees for assignment:', employees.map(e => ({ id: e.id, managerId: e.managerId, userEmail: e.user?.email })))
 
 		if (employees.length !== employeeIds.length) {
 			return res
@@ -740,10 +746,14 @@ async function approveAssignment(req, res) {
 			return res.status(404).json({ error: 'Assignment not found' })
 		}
 
+		// Debug: log managerId and userId for troubleshooting
+		console.log('ApproveAssignment: assignment.managerId =', assignment.managerId, 'req.user.id =', managerUserId);
 		// Verify this is the right manager
 		if (assignment.managerId !== managerUserId) {
 			return res.status(403).json({
 				error: 'You are not authorized to approve this assignment',
+				assignmentManagerId: assignment.managerId,
+				userId: managerUserId,
 			})
 		}
 

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { apiPost } from '@/lib/api'
+import { apiPost, apiGet } from '@/lib/api'
 import Navigation from '@/components/Navigation'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { Sparkles, Briefcase, Award, Loader2, CheckCircle } from 'lucide-react'
@@ -39,34 +39,48 @@ export default function CreateProjectPage() {
 	})
 	const [editedSkills, setEditedSkills] = useState<GeneratedSkill[]>([])
 
-	const handleGenerate = async () => {
-		if (!prompt.trim()) {
-			setError('Please enter a project description')
-			return
-		}
+	// Candidate selection state (single declaration)
 
-		try {
-			setGenerating(true)
-			setError(null)
-			setAiResponse(null)
+		// Candidate selection state and functions
+		const [createdProjectId, setCreatedProjectId] = useState<number | null>(null);
+		const [candidates, setCandidates] = useState<any[]>([]);
+		const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([]);
+		const [assigning, setAssigning] = useState(false);
 
-			const response = await apiPost('/projects/generate', {
-				prompt: prompt.trim(),
-			})
+		const fetchCandidates = async (projectId: number) => {
+			try {
+				// Use apiGet for fetching candidates (GET request)
+				const res = await apiGet(`/projects/${projectId}/candidates`);
+				setCandidates(res.candidates || []);
+			} catch (err) {
+				setError('Failed to fetch candidates');
+			}
+		};
 
-			setAiResponse(response)
-			setEditedProject({
-				name: response.projectName,
-				description: response.description,
-			})
-			setEditedSkills(response.requiredSkills)
-		} catch (err: any) {
-			setError(err.message || 'Failed to generate project')
-		} finally {
-			setGenerating(false)
-		}
-	}
-
+		const handleGenerate = async () => {
+			if (!prompt.trim()) {
+				setError('Please enter a project description');
+				return;
+			}
+			try {
+				setGenerating(true);
+				setError(null);
+				setAiResponse(null);
+				const response = await apiPost('/projects/generate', {
+					prompt: prompt.trim(),
+				});
+				setAiResponse(response);
+				setEditedProject({
+					name: response.projectName,
+					description: response.description,
+				});
+				setEditedSkills(response.requiredSkills);
+			} catch (err: any) {
+				setError(err.message || 'Failed to generate project');
+			} finally {
+				setGenerating(false);
+			}
+		};
 	const handleCreateProject = async () => {
 		if (!editedProject.name || !editedProject.description) {
 			setError('Please fill in project name and description')
@@ -82,16 +96,14 @@ export default function CreateProjectPage() {
 			setLoading(true)
 			setError(null)
 
-			await apiPost('/projects', {
+			const result = await apiPost('/projects', {
 				name: editedProject.name,
 				description: editedProject.description,
 				requiredSkills: editedSkills,
 			})
 
-			setSuccess(true)
-			setTimeout(() => {
-				router.push('/hr/candidates')
-			}, 2000)
+			setCreatedProjectId(result.project.id)
+			await fetchCandidates(result.project.id)
 		} catch (err: any) {
 			setError(err.message || 'Failed to create project')
 		} finally {
@@ -124,19 +136,95 @@ export default function CreateProjectPage() {
 		return colors[category] || 'bg-gray-100 text-gray-800'
 	}
 
-	if (success) {
+
+	if (createdProjectId) {
+		// Handler for assigning employees
+		const handleAssignEmployees = async () => {
+			setAssigning(true);
+			setError(null);
+			setSuccess(false);
+			try {
+				await apiPost(`/projects/${createdProjectId}/select-employees`, {
+					employeeIds: selectedEmployeeIds,
+				});
+				setSuccess(true);
+				setSelectedEmployeeIds([]);
+				// Optionally, you can refetch candidates or redirect
+			} catch (err: any) {
+				setError(err.message || 'Failed to assign employees');
+			} finally {
+				setAssigning(false);
+			}
+		};
 		return (
 			<ProtectedRoute allowedRoles={['HR']}>
 				<Navigation />
 				<div className="container mx-auto px-4 py-8 max-w-4xl">
-					<div className="text-center py-12">
-						<CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
-						<h2 className="text-2xl font-bold mb-2">
-							Project Created Successfully!
-						</h2>
-						<p className="text-gray-600 mb-4">
-							Redirecting to candidate selection...
-						</p>
+					<h2 className="text-2xl font-bold mb-4">Select Employees for Assignment</h2>
+					{error && (
+						<div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded mb-6">{error}</div>
+					)}
+					{success && (
+						<div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded mb-6">
+							<CheckCircle className="inline w-5 h-5 mr-2 text-green-600" />
+							Employees assigned successfully! Managers will be notified for approval.
+						</div>
+					)}
+					<div className="mb-6">
+						<p className="text-gray-600">Choose employees to assign to this project. Managers will receive approval requests.</p>
+					</div>
+					<div className="overflow-x-auto mb-6">
+						<table className="min-w-full border">
+							<thead>
+								<tr className="bg-gray-100">
+									<th className="px-4 py-2">Select</th>
+									<th className="px-4 py-2">Name</th>
+									<th className="px-4 py-2">Email</th>
+									<th className="px-4 py-2">Department</th>
+									<th className="px-4 py-2">Position</th>
+									<th className="px-4 py-2">Skill Index</th>
+									<th className="px-4 py-2">Match %</th>
+								</tr>
+							</thead>
+							<tbody>
+								{candidates.map((c) => (
+									<tr key={c.employeeId}>
+										<td className="px-4 py-2 text-center">
+											<input
+												type="checkbox"
+												checked={selectedEmployeeIds.includes(c.employeeId)}
+												onChange={(e) => {
+													if (e.target.checked) {
+														setSelectedEmployeeIds([...selectedEmployeeIds, c.employeeId])
+													} else {
+														setSelectedEmployeeIds(selectedEmployeeIds.filter((id) => id !== c.employeeId))
+													}
+												}}
+											/>
+										</td>
+										<td className="px-4 py-2">{c.name}</td>
+										<td className="px-4 py-2">{c.email}</td>
+										<td className="px-4 py-2">{c.department || '-'}</td>
+										<td className="px-4 py-2">{c.position || '-'}</td>
+										<td className="px-4 py-2">{c.skillIndex}</td>
+										<td className="px-4 py-2">{c.matchPercentage}%</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+					<div className="flex gap-3 justify-end">
+						<Button variant="outline" onClick={() => router.push('/hr/projects')}>Cancel</Button>
+						<Button onClick={handleAssignEmployees} disabled={selectedEmployeeIds.length === 0 || assigning}>
+							{assigning ? (
+								<>
+									<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+									Assigning...
+								</>
+							) : (
+								'Assign Selected Employees'
+							)}
+						</Button>
 					</div>
 				</div>
 			</ProtectedRoute>
@@ -148,12 +236,9 @@ export default function CreateProjectPage() {
 			<Navigation />
 			<div className="container mx-auto px-4 py-8 max-w-4xl">
 				<div className="mb-6">
-					<h1 className="text-3xl font-bold">
-						Create Project with AI
-					</h1>
+					<h1 className="text-3xl font-bold">Create Project with AI</h1>
 					<p className="text-gray-600">
-						Describe your project and let AI generate skill
-						requirements
+						Describe your project and let AI generate skill requirements
 					</p>
 				</div>
 
@@ -183,8 +268,7 @@ export default function CreateProjectPage() {
 								disabled={generating}
 							/>
 							<p className="text-xs text-gray-500 mt-1">
-								Be specific about technologies, requirements,
-								and project goals
+								Be specific about technologies, requirements, and project goals
 							</p>
 						</div>
 
@@ -220,25 +304,18 @@ export default function CreateProjectPage() {
 							</CardHeader>
 							<CardContent className="space-y-4">
 								<div>
-									<Label htmlFor="project-name">
-										Project Name
-									</Label>
+									<Label htmlFor="project-name">Project Name</Label>
 									<Input
 										id="project-name"
 										value={editedProject.name}
 										onChange={(e) =>
-											setEditedProject({
-												...editedProject,
-												name: e.target.value,
-											})
+											setEditedProject({ ...editedProject, name: e.target.value })
 										}
 										placeholder="Project name"
 									/>
 								</div>
 								<div>
-									<Label htmlFor="project-description">
-										Description
-									</Label>
+									<Label htmlFor="project-description">Description</Label>
 									<textarea
 										id="project-description"
 										value={editedProject.description}
@@ -265,8 +342,7 @@ export default function CreateProjectPage() {
 							<CardContent>
 								{editedSkills.length === 0 ? (
 									<p className="text-gray-500 text-center py-8">
-										No skills generated. Try regenerating
-										the project.
+										No skills generated. Try regenerating the project.
 									</p>
 								) : (
 									<div className="space-y-3">
@@ -277,14 +353,8 @@ export default function CreateProjectPage() {
 											>
 												<div className="flex-1">
 													<div className="flex items-center gap-2 mb-1">
-														<p className="font-medium">
-															{skill.skillName}
-														</p>
-														<Badge
-															className={getCategoryColor(
-																skill.category
-															)}
-														>
+														<p className="font-medium">{skill.skillName}</p>
+														<Badge className={getCategoryColor(skill.category)}>
 															{skill.category}
 														</Badge>
 													</div>
@@ -300,10 +370,7 @@ export default function CreateProjectPage() {
 															onChange={(e) =>
 																updateSkillWeight(
 																	index,
-																	parseInt(
-																		e.target
-																			.value
-																	)
+																	parseInt(e.target.value)
 																)
 															}
 															className="flex-1"
@@ -316,9 +383,7 @@ export default function CreateProjectPage() {
 												<Button
 													size="sm"
 													variant="outline"
-													onClick={() =>
-														removeSkill(index)
-													}
+													onClick={() => removeSkill(index)}
 													className="text-red-600 hover:bg-red-50"
 												>
 													Remove
@@ -328,8 +393,7 @@ export default function CreateProjectPage() {
 									</div>
 								)}
 								<p className="text-xs text-gray-500 mt-4">
-									Adjust skill weights (1-10) to indicate
-									importance for the project
+									Adjust skill weights (1-10) to indicate importance for the project
 								</p>
 							</CardContent>
 						</Card>
@@ -347,10 +411,7 @@ export default function CreateProjectPage() {
 							>
 								Start Over
 							</Button>
-							<Button
-								onClick={handleCreateProject}
-								disabled={loading}
-							>
+							<Button onClick={handleCreateProject} disabled={loading}>
 								{loading ? (
 									<>
 										<Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -368,25 +429,12 @@ export default function CreateProjectPage() {
 				{!aiResponse && (
 					<Card className="bg-blue-50 border-blue-200">
 						<CardContent className="pt-6">
-							<h3 className="font-semibold mb-2">
-								How it works:
-							</h3>
+							<h3 className="font-semibold mb-2">How it works:</h3>
 							<ol className="text-sm text-gray-700 space-y-1 list-decimal list-inside">
-								<li>
-									Describe your project requirements in detail
-								</li>
-								<li>
-									AI will analyze and generate project details
-									with required skills
-								</li>
-								<li>
-									Review and adjust skill weights based on
-									importance
-								</li>
-								<li>
-									Create the project and proceed to candidate
-									selection
-								</li>
+								<li>Describe your project requirements in detail</li>
+								<li>AI will analyze and generate project details with required skills</li>
+								<li>Review and adjust skill weights based on importance</li>
+								<li>Create the project and proceed to candidate selection</li>
 							</ol>
 						</CardContent>
 					</Card>

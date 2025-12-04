@@ -55,9 +55,9 @@ async function register(req, res) {
       });
     }
 
-    // Generate JWT token
+    // Generate JWT token (include 'id' for backend auth)
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
+      { id: user.id, userId: user.id, email: user.email, role: user.role },
       JWT_SECRET,
       { expiresIn: TOKEN_EXP }
     );
@@ -136,9 +136,9 @@ async function login(req, res) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Generate JWT token
+    // Generate JWT token (include 'id' for backend auth)
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
+      { id: user.id, userId: user.id, email: user.email, role: user.role },
       JWT_SECRET,
       { expiresIn: TOKEN_EXP }
     );

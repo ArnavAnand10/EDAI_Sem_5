@@ -71,7 +71,32 @@ export default function ManagerProjectsPage() {
 		try {
 			setLoading(true)
 			const data = await apiGet('/projects/my/requests')
-			setAssignments(Array.isArray(data) ? data : [])
+			// Map backend response to expected frontend structure
+			if (Array.isArray(data?.requests)) {
+				setAssignments(
+					data.requests.map((a: any) => ({
+						id: a.assignmentId,
+						projectId: a.projectId,
+						employeeId: a.employee.id,
+						status: a.status,
+						createdAt: a.requestedAt,
+						project: {
+							id: a.projectId,
+							name: a.projectName,
+							description: a.projectDescription,
+							status: a.status,
+						},
+						employee: {
+							id: a.employee.id,
+							firstName: a.employee.name.split(' ')[0] || '',
+							lastName: a.employee.name.split(' ').slice(1).join(' ') || '',
+							position: a.employee.position,
+						},
+					}))
+				);
+			} else {
+				setAssignments([]);
+			}
 		} catch (err: any) {
 			setError(err.message)
 			setAssignments([])
@@ -94,7 +119,7 @@ export default function ManagerProjectsPage() {
 			setError(null)
 
 			await apiPut(`/projects/assignments/${selectedAssignment.id}/approve`, {
-				status,
+				action: status === 'APPROVED' ? 'APPROVE' : 'REJECT',
 				comments,
 			})
 
