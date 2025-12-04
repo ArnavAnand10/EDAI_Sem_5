@@ -51,7 +51,7 @@ export default function Navigation() {
 						className="flex items-center space-x-2 font-bold text-lg"
 					>
 						<Award className="w-6 h-6 text-blue-600" />
-						<span>Skill Rating System</span>
+						<span>My Skills</span>
 					</Link>
 
 					{/* Navigation Links */}
