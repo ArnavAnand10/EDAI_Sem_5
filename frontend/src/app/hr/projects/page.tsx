@@ -33,39 +33,39 @@ import { Briefcase, Award, Users, Eye, Plus } from 'lucide-react'
 import Link from 'next/link'
 
 interface Project {
-	id: number;
-	name: string;
-	description: string;
-	status: string;
-	createdAt: string;
+	id: number
+	name: string
+	description: string
+	status: string
+	createdAt: string
 	requiredSkills: Array<{
-		name: string;
-		weight: number;
-		isMissing?: boolean;
-	}>;
+		name: string
+		weight: number
+		isMissing?: boolean
+	}>
 	assignments: Array<{
-		id: number;
+		id: number
 		employee: {
-			id: number;
-			name: string;
-			email: string;
-			department?: string;
-			position?: string;
-		};
-		managerId?: number;
-		status: string;
-		comments?: string;
-		selectedAt?: string;
-		approvedAt?: string;
-	}>;
+			id: number
+			name: string
+			email: string
+			department?: string
+			position?: string
+		}
+		managerId?: number
+		status: string
+		comments?: string
+		selectedAt?: string
+		approvedAt?: string
+	}>
 	allCandidates?: Array<{
-		employeeId: number;
-		name: string;
-		email: string;
-		department?: string;
-		skillIndex: number;
-		matchPercentage: number;
-	}>;
+		employeeId: number
+		name: string
+		email: string
+		department?: string
+		skillIndex: number
+		matchPercentage: number
+	}>
 }
 
 export default function AllProjectsPage() {
@@ -111,17 +111,18 @@ export default function AllProjectsPage() {
 	}
 
 	const openDetailsDialog = async (project: Project) => {
-		setLoading(true);
+		setLoading(true)
 		try {
-			const details = await apiGet(`/projects/${project.id}`);
-			setSelectedProject(details);
-			setIsDetailsDialogOpen(true);
+			const details = await apiGet(`/projects/${project.id}`)
+			console.log('Fetched project details:', details)
+			setSelectedProject(details)
+			setIsDetailsDialogOpen(true)
 		} catch (err: any) {
-			setError(err.message || 'Failed to fetch project details');
+			setError(err.message || 'Failed to fetch project details')
 		} finally {
-			setLoading(false);
+			setLoading(false)
 		}
-	};
+	}
 
 	const getStatusBadge = (status: string) => {
 		switch (status) {
@@ -155,11 +156,15 @@ export default function AllProjectsPage() {
 	}
 
 	const getAssignmentStats = (project: Project) => {
-		const total = project.assignments.length;
-		const pending = project.assignments.filter((a) => a.status === 'PENDING').length;
-		const approved = project.assignments.filter((a) => a.status === 'APPROVED').length;
-		return { total, pending, approved };
-	};
+		const total = project.assignments.length
+		const pending = project.assignments.filter(
+			(a) => a.status === 'PENDING'
+		).length
+		const approved = project.assignments.filter(
+			(a) => a.status === 'APPROVED'
+		).length
+		return { total, pending, approved }
+	}
 
 	if (loading) {
 		return (
@@ -235,9 +240,13 @@ export default function AllProjectsPage() {
 					</Card>
 					<Card>
 						<CardContent className="pt-6">
-							 <p className="text-2xl font-bold text-blue-600">
-								 {projects.reduce((sum, p) => sum + (p.assignments?.length || 0), 0)}
-							 </p>
+							<p className="text-2xl font-bold text-blue-600">
+								{projects.reduce(
+									(sum, p) =>
+										sum + (p.assignments?.length || 0),
+									0
+								)}
+							</p>
 							<p className="text-sm text-gray-600">
 								Total Assignments
 							</p>
@@ -433,98 +442,162 @@ export default function AllProjectsPage() {
 									{selectedProject.requiredSkills.length})
 								</h3>
 								<div className="grid grid-cols-2 gap-2">
-									 {selectedProject.requiredSkills.map((rs, idx) => (
-										 <div
-											 key={idx}
-											 className="flex items-center justify-between p-3 bg-gray-50 rounded"
-										 >
-											 <div>
-												 <p className="font-medium text-sm">{rs.name}</p>
-												 <p className="text-xs text-gray-500">
-													 {rs.isMissing ? 'Missing Skill' : ''}
-												 </p>
-											 </div>
-											 <Badge variant="outline">Weight: {rs.weight}</Badge>
-										 </div>
-									 ))}
+									{selectedProject.requiredSkills.map(
+										(rs, idx) => (
+											<div
+												key={idx}
+												className="flex items-center justify-between p-3 bg-gray-50 rounded"
+											>
+												<div>
+													<p className="font-medium text-sm">
+														{rs.name}
+													</p>
+													<p className="text-xs text-gray-500">
+														{rs.isMissing
+															? 'Missing Skill'
+															: ''}
+													</p>
+												</div>
+												<Badge variant="outline">
+													Weight: {rs.weight}
+												</Badge>
+											</div>
+										)
+									)}
 								</div>
 							</div>
 
-							 {/* Assignments */}
-							 <div>
-								 <h3 className="font-semibold mb-3 flex items-center gap-2">
-									 <Users className="w-4 h-4 text-green-600" />
-									 Employee Assignments ({selectedProject.assignments.length})
-								 </h3>
-								 {selectedProject.assignments.length === 0 ? (
-									 <p className="text-sm text-gray-500 text-center py-4">
-										 No assignments yet
-									 </p>
-								 ) : (
-									 <div className="space-y-2">
-										 {selectedProject.assignments.map((assignment) => (
-											 <div
-												 key={assignment.id}
-												 className="flex items-center justify-between p-3 bg-gray-50 rounded"
-											 >
-												 <div>
-													 <p className="font-medium">
-														 {assignment.employee.name}
-													 </p>
-													 <p className="text-xs text-gray-500">
-														 {assignment.employee.email}
-														 {assignment.employee.department
-															 ? ` | ${assignment.employee.department}`
-															 : ''}
-														 {assignment.employee.position
-															 ? ` | ${assignment.employee.position}`
-															 : ''}
-													 </p>
-												 </div>
-												 {assignment.status === 'APPROVED' ? (
-													 <Badge className="bg-green-100 text-green-800">Approved</Badge>
-												 ) : assignment.status === 'PENDING' ? (
-													 <Badge className="bg-yellow-100 text-yellow-800">Pending Manager</Badge>
-												 ) : (
-													 <Badge className="bg-red-100 text-red-800">Rejected</Badge>
-												 )}
-											 </div>
-										 ))}
-									 </div>
-								 )}
-							 </div>
+							{/* Assignments */}
+							<div>
+								<h3 className="font-semibold mb-3 flex items-center gap-2">
+									<Users className="w-4 h-4 text-green-600" />
+									Employee Assignments (
+									{selectedProject.assignments.length})
+								</h3>
+								{selectedProject.assignments.length === 0 ? (
+									<p className="text-sm text-gray-500 text-center py-4">
+										No assignments yet
+									</p>
+								) : (
+									<div className="space-y-2">
+										{selectedProject.assignments.map(
+											(assignment) => (
+												<div
+													key={assignment.id}
+													className="flex items-center justify-between p-3 bg-gray-50 rounded"
+												>
+													<div>
+														<p className="font-medium">
+															{
+																assignment
+																	.employee
+																	.name
+															}
+														</p>
+														<p className="text-xs text-gray-500">
+															{
+																assignment
+																	.employee
+																	.email
+															}
+															{assignment.employee
+																.department
+																? ` | ${assignment.employee.department}`
+																: ''}
+															{assignment.employee
+																.position
+																? ` | ${assignment.employee.position}`
+																: ''}
+														</p>
+													</div>
+													{assignment.status ===
+													'APPROVED' ? (
+														<Badge className="bg-green-100 text-green-800">
+															Approved
+														</Badge>
+													) : assignment.status ===
+													  'PENDING' ? (
+														<Badge className="bg-yellow-100 text-yellow-800">
+															Pending Manager
+														</Badge>
+													) : (
+														<Badge className="bg-red-100 text-red-800">
+															Rejected
+														</Badge>
+													)}
+												</div>
+											)
+										)}
+									</div>
+								)}
+							</div>
 
-							 {/* Candidate Scores */}
-							 {selectedProject.allCandidates && selectedProject.allCandidates.length > 0 && (
-								 <div>
-									 <h3 className="font-semibold mb-3 flex items-center gap-2">
-										 <Award className="w-4 h-4 text-blue-600" />
-										 Candidate Scores ({selectedProject.allCandidates.length})
-									 </h3>
-									 <Table>
-										 <TableHeader>
-											 <TableRow>
-												 <TableHead>Name</TableHead>
-												 <TableHead>Email</TableHead>
-												 <TableHead>Department</TableHead>
-												 <TableHead>Skill Index</TableHead>
-												 <TableHead>Match %</TableHead>
-											 </TableRow>
-										 </TableHeader>
-										 <TableBody>
-											 {selectedProject.allCandidates.map((c) => (
-												 <TableRow key={c.employeeId}>
-													 <TableCell>{c.name}</TableCell>
-													 <TableCell>{c.email}</TableCell>
-													 <TableCell>{c.department || '-'}</TableCell>
-													 <TableCell>{c.skillIndex}</TableCell>
-													 <TableCell>{c.matchPercentage}%</TableCell>
-												 </TableRow>
-											 ))}
-										 </TableBody>
-									 </Table>
-								 </div>
-							 )}
+							{console.log(selectedProject.allCandidates)}
+
+							{/* Candidate Scores */}
+							{selectedProject.allCandidates &&
+								selectedProject.allCandidates.length > 0 && (
+									<div>
+										<h3 className="font-semibold mb-3 flex items-center gap-2">
+											<Award className="w-4 h-4 text-blue-600" />
+											Candidate Scores (
+											{
+												selectedProject.allCandidates
+													.length
+											}
+											)
+										</h3>
+										<Table>
+											<TableHeader>
+												<TableRow>
+													<TableHead>Name</TableHead>
+													<TableHead>Email</TableHead>
+													<TableHead>
+														Department
+													</TableHead>
+													<TableHead>
+														Skill Index
+													</TableHead>
+													<TableHead>
+														Match %
+													</TableHead>
+												</TableRow>
+											</TableHeader>
+											<TableBody>
+												{selectedProject.allCandidates.map(
+													(c) => (
+														<TableRow
+															key={c.employeeId}
+														>
+															<TableCell>
+																{c.name}
+															</TableCell>
+															<TableCell>
+																{c.email}
+															</TableCell>
+															<TableCell>
+																{c.department ||
+																	'-'}
+															</TableCell>
+															<TableCell>
+																{c.skillIndex}
+															</TableCell>
+															<TableCell>
+																{(
+																	c.matchPercentage *
+																	10
+																).toPrecision(
+																	3
+																)}
+																%
+															</TableCell>
+														</TableRow>
+													)
+												)}
+											</TableBody>
+										</Table>
+									</div>
+								)}
 
 							<div className="flex justify-end pt-4 border-t">
 								<Button
